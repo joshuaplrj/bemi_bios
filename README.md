@@ -2,6 +2,16 @@
 
 Welcome to the **Bemi BIOS v7.2** repository. This project implements a hardware-firmware translation layer bridging Legacy x86 Operating Systems directly into a high-density, software-defined RISC execution environment.
 
+# Bemi BIOS
+
+Bemi BIOS is a research and implementation project for legacy x86 systems. The core idea is simple: modern x86 carries a permanent front-end tax, and some of that cost may be reduced by moving translation, scheduling, and control logic into firmware and ring -1 software instead of leaving every cost to the CPU front end.
+
+The current tree contains the firmware package, the translation and compatibility layers, simulator-backed validation tools, and the design documents that explain the architecture.
+
+## Why Apple Silicon Inspired It
+
+Apple's transition to ARM-based Apple Silicon showed that you can still get good performance even using smaller-in-size instructions though you may have to send more instructions. 
+
 This repository hosts:
 1. **Bemi BIOS v7.2 Firmware Source**: EDK2-compatible UEFI driver and Ring -1 hypervisor backend.
 2. **Pentium CPU Simulator**: A strictly isolated hardware simulator of a classic 200MHz Intel Pentium (P54C-class) processor.
