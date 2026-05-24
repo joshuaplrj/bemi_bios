@@ -1,0 +1,215 @@
+{
+  "main": {
+    "id": "3805c5024b31f9bb",
+    "type": "split",
+    "children": [
+      {
+        "id": "6d71634cb1406d6c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c3b27f2c81081d85",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Chapter_1.4_Thread_Density.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Chapter_1.4_Thread_Density"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "32fed727867219d3",
+    "type": "split",
+    "children": [
+      {
+        "id": "1be1cf166807c0e9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4d9866e1ec65ae31",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "dad2af9096dec07b",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "01a65a5ba73eb8fc",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "44a7d74e0be6bd52",
+    "type": "split",
+    "children": [
+      {
+        "id": "b8dd8f24a48d44cb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7ad02476cac31127",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Chapter_1.4_Thread_Density.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Chapter_1.4_Thread_Density"
+            }
+          },
+          {
+            "id": "5451b00e6771ad49",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Chapter_1.4_Thread_Density.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Chapter_1.4_Thread_Density"
+            }
+          },
+          {
+            "id": "903d7c6a92bad933",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "4ce4d8939a37e383",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "6ff1dd31c3af3794",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Chapter_1.4_Thread_Density.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Chapter_1.4_Thread_Density"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "c3b27f2c81081d85",
+  "lastOpenFiles": [
+    "Chapter_8_Physics_Of_Efficiency.md",
+    "Chapter_8.4_Efficiency_Benchmarks.md",
+    "Chapter_8.3_SMT_Density.md",
+    "Chapter_8.2_JIT_Efficiency.md",
+    "Chapter_8.1_x86_Power_Tax.md",
+    "Chapter_7_Benchmarking.md",
+    "Chapter_7.2_Workload_Analysis.md",
+    "Chapter_7.1_Testing_Environment.md",
+    "Chapter_6_Thread_Scheduling.md",
+    "Chapter_6.2_Cache_Mitigation.md",
+    "Chapter_6.1_Thread_Mapping.md",
+    "Chapter_5_Implementation.md",
+    "Chapter_5.3_Hardware_Abstractions.md",
+    "Chapter_5.2_Rust_Modules.md",
+    "Chapter_5.1_Firmware_Architecture.md",
+    "Chapter_4_Hypervisor.md",
+    "Chapter_4.4_Legacy_Compatibility.md",
+    "Chapter_4.3_Interrupt_Handling.md",
+    "Chapter_4.2_Memory_Virtualization.md",
+    "Chapter_4.1_Privilege_Levels.md",
+    "Chapter_3_Macro_Fusion.md",
+    "Chapter_3.4_Implementation.md",
+    "Chapter_3.3_Memory_Fusion.md",
+    "Chapter_3.2_Graph_Analysis.md",
+    "Chapter_3.1_Hardware_Vs_Software.md",
+    "Chapter_2_DBT.md"
+  ]
+}

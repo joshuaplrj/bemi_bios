@@ -1,0 +1,374 @@
+Number of pages: 253
+
+--- First 10 pages text ---
+
+[Page 1]
+Reinforcement Learning: An Overview
+Kevin P. Murphy
+December 3, 2025arXiv:2412.05265v5  [cs.AI]  1 Dec 2025
+
+[Page 2]
+2
+
+[Page 3]
+Brief Table of Contents
+1 Introduction 13
+1.1 Sequential decision making . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+1.2 Canonical models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+1.3 Reinforcement Learning: a high-level summary . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+2 Value-based RL 31
+2.1 Basic concepts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+2.2 Solving for the optimal policy in a known world model . . . . . . . . . . . . . . . . . . . . . . 33
+2.3 Value function learning using samples from the world model . . . . . . . . . . . . . . . . . . . 35
+2.4 SARSA: on-policy TD policy learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+2.5 Q-learning: off-policy TD policy learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+3 Policy-based RL 51
+3.1 Policy gradient methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+3.2 Actor-critic methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+3.3 Policy improvement methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 64
+3.4 Off-policy methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 68
+3.5 Gradient-free policy optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72
+3.6 RL as inference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 73
+4 Model-based RL 83
+4.1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 83
+4.2 Decision-time (online) planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 84
+4.3 Background (offline) planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+4.4 World models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 97
+4.5 Beyond one-step models: predictive representations . . . . . . . . . . . . . . . . . . . . . . . . 111
+5 Multi-agent RL 121
+5.1 Games . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 121
+5.2 Solution concepts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 126
+5.3 Algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+6 LLMs and RL 147
+6.1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 147
+6.2 RL for LLMs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 147
+6.3 LLMs for RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 160
+6.4 Implementation details . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 165
+3
+
+[Page 4]
+7 Other topics in RL 173
+7.1 Regret minimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 173
+7.2 Exploration-exploitation tradeoff . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 175
+7.3 Distributional RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 180
+7.4 Intrinsic motivation for reward-free RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 181
+7.5 Hierarchical RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 183
+7.6 Imitation learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 190
+7.7 Offline RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 192
+7.8 General RL, AIXI and universal AGI . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 197
+8 Acknowledgements 199
+4
+
+[Page 5]
+Contents
+1 Introduction 13
+1.1 Sequential decision making . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+1.1.1 Maximum expected utility principle . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+1.1.2 Episodic vs continual tasks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+1.1.3 Universal model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+1.1.4 Further reading . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+1.2 Canonical models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+1.2.1 Partially observed MDPs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+1.2.2 Markov decision process (MDPs) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+1.2.3 Goal-conditioned MDPs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+1.2.4 Contextual MDPs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+1.2.5 Contextual bandits . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+1.2.6 Belief state MDPs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+1.2.7 Optimization problems as decision problems . . . . . . . . . . . . . . . . . . . . . . . . 21
+1.2.7.1 Best-arm identification . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+1.2.7.2 Bayesian optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+1.2.7.3 Active learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+1.2.7.4 Stochastic Gradient Descent (SGD) . . . . . . . . . . . . . . . . . . . . . . . 22
+1.3 Reinforcement Learning: a high-level summary . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+1.3.1 Value-based RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+1.3.2 Policy-based RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+1.3.3 Model-based RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+1.3.4 State uncertainty (partial observability) . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+1.3.4.1 Optimal solution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+1.3.4.2 Finite observation history . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+1.3.4.3 Stateful (recurrent) policies . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+1.3.5 Model uncertainty (exploration-exploitation tradeoff) . . . . . . . . . . . . . . . . . . 25
+1.3.6 Reward functions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+1.3.6.1 The reward hypothesis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+1.3.6.2 Non-Markovian rewards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+1.3.6.3 Reward hacking . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+1.3.6.4 Sparse reward . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+1.3.6.5 Reward shaping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+1.3.6.6 Intrinsic reward . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+1.3.7 Best practices for experimental work in RL . . . . . . . . . . . . . . . . . . . . . . . . 28
+2 Value-based RL 31
+2.1 Basic concepts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+2.1.1 Value functions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+2.1.2 Bellman’s equations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+5
+
+[Page 6]
+2.1.3 Example: 1d grid world . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+2.2 Solving for the optimal policy in a known world model . . . . . . . . . . . . . . . . . . . . . . 33
+2.2.1 Value iteration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+2.2.2 Real-time dynamic programming (RTDP) . . . . . . . . . . . . . . . . . . . . . . . . . 34
+2.2.3 Policy iteration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+2.3 Value function learning using samples from the world model . . . . . . . . . . . . . . . . . . . 35
+2.3.1 Monte Carlo estimation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+2.3.2 Temporal difference (TD) learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+2.3.3 Combining TD and MC learning using TD(λ) . . . . . . . . . . . . . . . . . . . . . . . 36
+2.3.4 Eligibility traces . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+2.4 SARSA: on-policy TD policy learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+2.4.1 Convergence . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+2.4.2 Sarsa(λ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+2.5 Q-learning: off-policy TD policy learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+2.5.1 Tabular Q learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+2.5.2 Q learning with function approximation . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+2.5.2.1 Neural fitted Q . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+2.5.2.2 DQN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+2.5.2.3 Experience replay . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+2.5.2.4 Prioritized experience replay . . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+2.5.2.5 The deadly triad . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+2.5.2.6 Target networks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+2.5.2.7 Gradient TD methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+2.5.2.8 Two time-scale methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+2.5.2.9 Layer norm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+2.5.2.10 Other methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+2.5.3 Maximization bias . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+2.5.3.1 Double Q-learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+2.5.3.2 Double DQN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45
+2.5.3.3 Randomized ensemble DQN . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+2.5.4 DQN extensions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+2.5.4.1 Q learning for continuous actions . . . . . . . . . . . . . . . . . . . . . . . . . 46
+2.5.4.2 Dueling DQN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46
+2.5.4.3 Noisy nets and exploration . . . . . . . . . . . . . . . . . . . . . . . . . . . . 47
+2.5.4.4 Multi-step DQN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 47
+2.5.4.5 Q(λ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 47
+2.5.4.6 Rainbow . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 48
+2.5.4.7 Bigger, Better, Faster . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 48
+2.5.4.8 Other methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 49
+2.5.5 Q-learning for GCRL using hindsight relabeling . . . . . . . . . . . . . . . . . . . . . . 49
+3 Policy-based RL 51
+3.1 Policy gradient methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+3.1.1 Likelihood ratio estimate . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+3.1.2 Variance reduction using reward-to-go . . . . . . . . . . . . . . . . . . . . . . . . . . . 52
+3.1.3 REINFORCE . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 53
+3.1.4 The policy gradient theorem . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 53
+3.1.5 Variance reduction using a baseline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 54
+3.1.6 REINFORCE with baseline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+3.2 Actor-critic methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+3.2.1 Advantage actor critic (A2C) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+3.2.2 Generalized advantage estimation (GAE) . . . . . . . . . . . . . . . . . . . . . . . . . 57
+6
+
+[Page 7]
+3.2.3 Two-time scale actor critic algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+3.2.4 Natural policy gradient methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+3.2.4.1 Natural gradient descent . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+3.2.4.2 Natural actor critic . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+3.2.5 Architectural issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+3.2.6 Deterministic policy gradient methods . . . . . . . . . . . . . . . . . . . . . . . . . . . 61
+3.2.6.1 Deterministic policy gradient theorem . . . . . . . . . . . . . . . . . . . . . . 61
+3.2.6.2 DDPG . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62
+3.2.6.3 Twin Delayed DDPG (TD3) . . . . . . . . . . . . . . . . . . . . . . . . . . . 62
+3.2.6.4 Wasserstein Policy Optimization (WPO) . . . . . . . . . . . . . . . . . . . . 62
+3.3 Policy improvement methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 64
+3.3.1 Policy improvement lower bound . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 64
+3.3.2 Trust region policy optimization (TRPO) . . . . . . . . . . . . . . . . . . . . . . . . . 65
+3.3.3 Proximal Policy Optimization (PPO) . . . . . . . . . . . . . . . . . . . . . . . . . . . . 66
+3.3.3.1 Simplified form of the clipping term . . . . . . . . . . . . . . . . . . . . . . . 66
+3.3.3.2 PPO for diffusion policies . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 67
+3.3.3.3 Simple policy optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . 67
+3.3.4 Variational Maximum a Posteriori Policy Optimization (VMPO) . . . . . . . . . . . . 67
+3.4 Off-policy methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 68
+3.4.1 Policy evaluation using importance sampling . . . . . . . . . . . . . . . . . . . . . . . 68
+3.4.2 Off-policy actor critic methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 69
+3.4.2.1 Learning the critic using V-trace . . . . . . . . . . . . . . . . . . . . . . . . . 69
+3.4.2.2 Learning the actor . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 70
+3.4.2.3 Example: IMPALA . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 71
+3.4.2.4 Off-policy learning with deterministic policies . . . . . . . . . . . . . . . . . . 72
+3.4.2.5 PGQL: Combining off-policy Q-learning with policy gradient . . . . . . . . . 72
+3.4.3 Off-policy policy improvement methods . . . . . . . . . . . . . . . . . . . . . . . . . . 72
+3.5 Gradient-free policy optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72
+3.6 RL as inference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 73
+3.6.1 Deterministic case (planning/control as inference) . . . . . . . . . . . . . . . . . . . . 74
+3.6.2 Stochastic case (policy learning as variational inference) . . . . . . . . . . . . . . . . . 74
+3.6.3 EM control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 75
+3.6.4 KL control (maximum entropy RL) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 76
+3.6.5 Maximum a Posteriori Policy Optimization (MPO) . . . . . . . . . . . . . . . . . . . . 76
+3.6.6 Sequential Monte Carlo Policy Optimisation (SMC-PO) . . . . . . . . . . . . . . . . . 77
+3.6.7 AWR and AWAC . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 77
+3.6.8 Soft Actor Critic (SAC) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 77
+3.6.8.1 SAC objective . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 77
+3.6.8.2 Policy evaluation: tabular case . . . . . . . . . . . . . . . . . . . . . . . . . . 77
+3.6.8.3 Policy evaluation: general case . . . . . . . . . . . . . . . . . . . . . . . . . . 78
+3.6.8.4 Policy improvement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 79
+3.6.8.5 Adjusting the temperature . . . . . . . . . . . . . . . . . . . . . . . . . . . . 79
+3.6.9 Active inference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 81
+4 Model-based RL 83
+4.1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 83
+4.2 Decision-time (online) planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 84
+4.2.1 Receeding horizon control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 84
+4.2.1.1 Forward search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 85
+4.2.1.2 Branch and bound . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 85
+4.2.1.3 Sparse sampling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 86
+4.2.1.4 Heuristic search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 86
+7
+
+[Page 8]
+4.2.2 Monte Carlo tree search (MCTS) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 86
+4.2.2.1 MCTS for 2p0s games: AlphaGo, AlphaGoZero, and AlphaZero . . . . . . . 87
+4.2.2.2 MCTS with learned world model: MuZero and EfficientZero . . . . . . . . . 88
+4.2.2.3 MCTS in belief space . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 89
+4.2.3 Sequential Monte Carlo (SMC) for online planning . . . . . . . . . . . . . . . . . . . . 89
+4.2.4 Model predictive control (MPC), aka open loop planning . . . . . . . . . . . . . . . . 90
+4.2.4.1 Suboptimality of open-loop planning for stochastic environments . . . . . . . 91
+4.2.4.2 Trajectory optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92
+4.2.4.3 LQR . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92
+4.2.4.4 Random shooting . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92
+4.2.4.5 CEM . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92
+4.2.4.6 MPPI . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+4.2.4.7 GP-MPC . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+4.3 Background (offline) planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+4.3.1 A game-theoretic perspective on MBRL . . . . . . . . . . . . . . . . . . . . . . . . . . 93
+4.3.2 Dyna . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 95
+4.3.2.1 Tabular Dyna . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 95
+4.3.2.2 Dyna with function approximation . . . . . . . . . . . . . . . . . . . . . . . . 95
+4.4 World models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 97
+4.4.1 World models which are trained to predict observation targets . . . . . . . . . . . . . 97
+4.4.1.1 Generative world models without latent variables . . . . . . . . . . . . . . . 98
+4.4.1.2 Generative world models with latent variables . . . . . . . . . . . . . . . . . 98
+4.4.1.3 Example: Dreamer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 98
+4.4.1.4 Example: IRIS . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 101
+4.4.1.5 Code world models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 101
+4.4.1.6 Partial observation prediction . . . . . . . . . . . . . . . . . . . . . . . . . . 101
+4.4.2 World models which are trained to predict other targets . . . . . . . . . . . . . . . . . 101
+4.4.2.1 The objective mismatch problem . . . . . . . . . . . . . . . . . . . . . . . . . 102
+4.4.2.2 Observation prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 102
+4.4.2.3 Reward prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 103
+4.4.2.4 Value prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 103
+4.4.2.5 Policy prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 104
+4.4.2.6 Self prediction (self distillation) . . . . . . . . . . . . . . . . . . . . . . . . . 104
+4.4.2.7 Avoiding self-prediction collapse using frozen targets . . . . . . . . . . . . . . 104
+4.4.2.8 Avoiding self-prediction collapse using information-theoretic regularization . 105
+4.4.2.9 Preventing self-prediction collapse using game-theoretic approaches . . . . . 106
+4.4.2.10 Example: JEPA . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 107
+4.4.2.11 Example: DinoWM . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 108
+4.4.2.12 Example: TD-MPC . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 108
+4.4.2.13 Example: BYOL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 109
+4.4.2.14 Example: Imagination-augmented agents . . . . . . . . . . . . . . . . . . . . 110
+4.4.3 World models that are trained to help planning . . . . . . . . . . . . . . . . . . . . . . 110
+4.4.4 Dealing with model errors and uncertainty . . . . . . . . . . . . . . . . . . . . . . . . . 110
+4.4.4.1 Avoiding compounding errors in rollouts . . . . . . . . . . . . . . . . . . . . . 110
+4.4.4.2 Unified model and planning variational lower bound . . . . . . . . . . . . . . 111
+4.4.4.3 Dynamically switching between MFRL and MBRL . . . . . . . . . . . . . . . 111
+4.4.5 Exploration for learning world models . . . . . . . . . . . . . . . . . . . . . . . . . . . 111
+4.5 Beyond one-step models: predictive representations . . . . . . . . . . . . . . . . . . . . . . . . 111
+4.5.1 General value functions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 112
+4.5.2 Successor representations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 112
+4.5.3 Successor features . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 115
+4.5.3.1 Generalized policy improvement . . . . . . . . . . . . . . . . . . . . . . . . . 116
+8
+
+[Page 9]
+4.5.3.2 Option keyboard . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 116
+4.5.3.3 Learning SFs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 117
+4.5.3.4 Choosing the tasks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 117
+4.5.4 Successor measures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 117
+4.5.4.1 Learning SMs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 118
+4.5.4.2 Jumpy models using geometric policy composition . . . . . . . . . . . . . . . 119
+4.5.4.3 Other related work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 119
+4.5.5 Connection between options and successor representations . . . . . . . . . . . . . . . . 119
+5 Multi-agent RL 121
+5.1 Games . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 121
+5.1.1 Normal-form games . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 121
+5.1.2 Stochastic games . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 123
+5.1.3 Partially observed stochastic games (POSG) . . . . . . . . . . . . . . . . . . . . . . . 123
+5.1.3.1 Data generating process . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 124
+5.1.3.2 Objective . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 124
+5.1.3.3 Single agent perspective . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 125
+5.1.3.4 Factored Observation Stochastic Games (FOSG) . . . . . . . . . . . . . . . . 125
+5.1.4 Extensive form games (EFG) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 125
+5.1.4.1 Example: Kuhn Poker as EFG . . . . . . . . . . . . . . . . . . . . . . . . . . 125
+5.1.4.2 Converting FOSG to EFG . . . . . . . . . . . . . . . . . . . . . . . . . . . . 126
+5.2 Solution concepts . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 126
+5.2.1 Notation and definitions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 127
+5.2.2 Minimax . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 127
+5.2.3 Exploitability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 128
+5.2.4 Nash equilibrium . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 128
+5.2.5 Approximate Nash equilibrium . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 128
+5.2.6 Entropy regularized Nash equilibria (aka Quantal Response Equilibria) . . . . . . . . . 129
+5.2.7 Correlated equilibrium . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 129
+5.2.8 Limitations of equilibrium solutions . . . . . . . . . . . . . . . . . . . . . . . . . . . . 130
+5.2.9 Pareto optimality . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 130
+5.2.10 Social welfare and fairness . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 131
+5.2.11 No regret . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 131
+5.2.12 Shapley values . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 132
+5.2.13 Stackelberg equilibrium . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 132
+5.3 Algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+5.3.1 Centralized learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+5.3.2 Independent learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+5.3.2.1 Independent Q learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+5.3.2.2 Independent Actor Critic . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 134
+5.3.2.3 Independent PPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 135
+5.3.2.4 Learning dynamics of multi-agent policy gradient methods . . . . . . . . . . 135
+5.3.3 Centralized training of decentralized policies (CTDE) . . . . . . . . . . . . . . . . . . 135
+5.3.3.1 Application to Diplomacy (Cicero) . . . . . . . . . . . . . . . . . . . . . . . . 136
+5.3.4 Value decomposition methods for common-reward games . . . . . . . . . . . . . . . . . 136
+5.3.4.1 Value decomposition network (VDN) . . . . . . . . . . . . . . . . . . . . . . 137
+5.3.4.2 QMIX . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 137
+5.3.5 Policy learning with self-play . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 137
+5.3.6 Policy learning with learned opponent models . . . . . . . . . . . . . . . . . . . . . . . 138
+5.3.7 Best response . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 138
+5.3.7.1 Fictitious play . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 138
+5.3.7.2 Neural fictitious self play (NFSP) . . . . . . . . . . . . . . . . . . . . . . . . 139
+9
+
+[Page 10]
+5.3.8 Population-based training . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 139
+5.3.8.1 PSRO (policy space response oracle) . . . . . . . . . . . . . . . . . . . . . . . 139
+5.3.8.2 Application to StarCraft (AlphaStar) . . . . . . . . . . . . . . . . . . . . . . 140
+5.3.9 Counterfactual Regret Minimization (CFR) . . . . . . . . . . . . . . . . . . . . . . . . 140
+5.3.9.1 Tabular case . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 141
+5.3.9.2 Deep CFR . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 141
+5.3.9.3 Applications to Poker and other games . . . . . . . . . . . . . . . . . . . . . 141
+5.3.10 Regularized policy gradient methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . 142
+5.3.10.1 Magnetic Mirror Descent (MMD) . . . . . . . . . . . . . . . . . . . . . . . . 142
+5.3.10.2 PPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 142
+5.3.11 Decision-time planning methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 143
+5.3.11.1 Magnetic Mirror Descent Search (MMDS) . . . . . . . . . . . . . . . . . . . . 143
+5.3.11.2 Belief state approximations . . . . . . . . . . . . . . . . . . . . . . . . . . . . 144
+5.3.11.3 Experiments . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 144
+5.3.11.4 Open questions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 145
+5.3.12 MARL for LLM agents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 145
+6 LLMs and RL 147
+6.1 Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 147
+6.2 RL for LLMs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 147
+6.2.1 RL fine tuning (RLFT) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 147
+6.2.2 Reward models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 148
+6.2.2.1 RL with verifiable rewards (RLVR) . . . . . . . . . . . . . . . . . . . . . . . 148
+6.2.2.2 Process vs outcome reward models . . . . . . . . . . . . . . . . . . . . . . . . 148
+6.2.2.3 Learning the reward model from human feedback (RLHF) . . . . . . . . . . 148
+6.2.2.4 Learning the reward model from AI feedback (RLAIF) . . . . . . . . . . . . 149
+6.2.2.5 Generative reward models (GRM) . . . . . . . . . . . . . . . . . . . . . . . . 149
+6.2.3 Agents which “think” . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 149
+6.2.3.1 Chain of thought prompting . . . . . . . . . . . . . . . . . . . . . . . . . . . 149
+6.2.3.2 Training a thinking model using RL . . . . . . . . . . . . . . . . . . . . . . . 149
+6.2.3.3 Thinking as marginal likelihood maximization . . . . . . . . . . . . . . . . . 150
+6.2.3.4 Can we bootstrap a model to think from scratch? . . . . . . . . . . . . . . . 150
+6.2.3.5 Agentic AI . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 150
+6.2.4 Algorithms for single-turn RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 150
+6.2.4.1 Problem setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 150
+6.2.4.2 PPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 151
+6.2.4.3 GRPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 151
+6.2.4.4 DAPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 152
+6.2.4.5 GSPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 152
+6.2.4.6 RLOO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 153
+6.2.4.7 REINFORCE++ . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 153
+6.2.4.8 VinePPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 153
+6.2.4.9 Adding a KL regularizer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 154
+6.2.4.10 DPO . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 154
+6.2.4.11 Inference-time scaling using posterior sampling . . . . . . . . . . . . . . . . . 155
+6.2.4.12 RLFT as amortized posterior sampling . . . . . . . . . . . . . . . . . . . . . 156
+6.2.5 Algorithms for multi-turn RL . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 157
+6.2.5.1 Example: RAGEN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 157
+6.2.5.2 Dealing with invalid actions . . . . . . . . . . . . . . . . . . . . . . . . . . . . 158
+6.2.5.3 Turn-level training . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 158
+6.2.5.4 Self-play for LLM training . . . . . . . . . . . . . . . . . . . . . . . . . . . . 159
+6.2.6 Alignment and the assistance game . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 160
+10

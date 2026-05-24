@@ -1,0 +1,22 @@
+# Chapter 10: Bemi v3.0: Memory & Predictor Ascendancy Architecture
+
+## 10.3 Hardware Memory Link Compression (HMC)
+
+### 10.3.1 Overcoming the Pin-Count Bandwidth Barrier
+Physical memory bandwidth is limited by the number of pins on the processor package and the frequency of the DDR5 bus. The dual-channel DDR5 configuration on our baseline motherboard is capped at a physical limit of **64 GB/s**. 
+
+Rather than waiting for wider physical buses, Bemi v3.0 implements **Hardware Memory Link Compression (HMC)** directly within the physical link layer of the memory controller.
+
+### 10.3.2 Base-Delta-Immediate (BDI) Link Compression
+The HMC unit utilizes a low-latency **Base-Delta-Immediate (BDI)** hardware compression algorithm. Since adjacent data values in memory cache lines (such as arrays of integers, pointers, or structures) often differ by small delta offsets, BDI represents the cache line using a common base value and an array of small deltas:
+
+```
+Uncompressed Cache Line:  [ 0x0000000000102000 | 0x0000000000102008 | 0x0000000000102010 ]
+Compressed (BDI):          Base: 0x0000000000102000, Deltas: [ 0, +8, +16 ]  (Saves 60% Space)
+```
+
+- **Compression Ratio:** Achieves an average **1.5x compression** on standard cache line transfers.
+- **Effective Memory Bandwidth:**
+  $$ \text{Bandwidth}_{\text{effective}} = \text{Bandwidth}_{\text{physical}} \times \text{Ratio}_{\text{compression}} $$
+  $$ \text{Bandwidth}_{\text{effective}} = 64 \text{ GB/s} \times 1.5 = 96.0 \text{ GB/s} $$
+- **Bandwidth Governor Adjustments:** The Bandwidth Governor (introduced in Section 9.6) is updated to throttle at 85% of this new effective limit: **81.6 GB/s**, preventing memory queues from stalling under 60-thread workloads.

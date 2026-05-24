@@ -1,0 +1,1 @@
+"import os\n\nworkspace = r\"c:\\Users\\John Jacob\\Desktop\\extras\\test-box\\vemi\\bemi_bios\"\nfor root, dirs, files in os.walk(workspace):\n    for file in files:\n        if file.lower().endswith(\".h\"):\n            print(os.path.join(root, file))\n"

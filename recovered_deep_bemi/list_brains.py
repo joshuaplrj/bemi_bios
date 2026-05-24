@@ -1,0 +1,1 @@
+"import os\n\nbrains_dir = r\"C:\\Users\\John Jacob\\.gemini\\antigravity\\brain\"\nif os.path.exists(brains_dir):\n    print(f\"Dirs in {brains_dir}:\")\n    for name in os.listdir(brains_dir):\n        path = os.path.join(brains_dir, name)\n        if os.path.isdir(path):\n            print(f\"  {name}\")\nelse:\n    print(f\"{brains_dir} does not exist.\")\n"
