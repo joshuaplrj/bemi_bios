@@ -1,6 +1,32 @@
 # Bemi BIOS v7.2 — Zero-Footprint Singularity & Pentium CPU Validations
 
-Welcome to the **Bemi BIOS v7.2** repository. This project implements a hardware-firmware translation layer bridging Legacy x86 Operating Systems directly into a high-density, software-defined RISC execution environment.
+## About This Project
+
+**Bemi BIOS** is an experimental firmware architecture that asks: *what if you kept x86's CISC decoder (for its ecosystem compatibility and macro-op fusion advantages) but replaced its execution back-ends with dense RISC cores, powered by a Ring -1 hypervisor and dynamic binary translation?* This project implements a hardware-firmware translation layer bridging Legacy x86 Operating Systems directly into a high-density, software-defined RISC execution environment.
+
+The inspiration for this project started with the release of Apple's M-series chips which got me thinking as to why Intel and AMD despite having a superior instruction set were not able to match the performance and efficiency of ARM chips. So this project is my small solution to make the legacy x86 better in some ways.
+
+
+### The Problem with x86
+
+x86's variable-length encoding (1–15 bytes per instruction) forces every CPU to solve a non-trivial parsing problem on every instruction fetch. The decoder complex consumes an estimated **20–30% of die area** and adds a **4-cycle decode tax** that is absent in fixed-length RISC ISAs. This is a structural burden carried forward from 1978 that every generation of silicon has had to work around. Intel and AMD have compensated with heroic engineering (massive out-of-order windows, trace caches, micro-op fusion), but the decoder tax remains a constant floor on both power and area.
+
+### Where Apple's M-Series Excels
+
+Apple's M-series chips proved that **RISC efficiency can deliver desktop-class performance at a fraction of the power**, not because ARM's ISA is inherently faster, but because:
+- Fixed 4-byte instructions eliminate the decoder tax (decode in 1 cycle vs x86's 4).
+- Freed silicon area is repurposed for more execution units, wider issue, and deeper ROBs.
+- A unified system-on-chip design eliminates decades of x86 platform fragmentation.
+
+The M-series demonstrated that **architectural efficiency can overcome raw ISA complexity** — a fact that Intel, despite commanding a superior instruction set with decades of software optimization, could not refute.
+
+### The Bemi Approach
+
+Rather than abandon x86 (as ARM did), Bemi **inverts the traditional CISC-to-RISC strategy**: keep the x86 decoder for its macro-op fusion and ecosystem compatibility ("Weaponized x86 Bemi"), but replace the bulky execution back-ends with many small RISC units. The key insight is that a RISC back-end takes ~0.15 mm² at 6nm versus x86's ~2.25 mm² — a **15× density advantage** that yields **144 virtual threads** from 12 physical cores.
+
+By running a hardware-locked hypervisor at Ring -1, the BIOS transparently translates x86 instruction streams into Bemi's fixed-32 RISC micro-ops at the firmware level. Legacy OS kernels believe they are running on native x86 hardware, while the underlying execution leverages temporal SMT, L2/L3 SRAM repurposing, extreme ROB compression (2-byte entries vs x86's 14-byte), and DBO-guided prefetching.
+
+This provides a simulated **17.10× average speedup over baseline x86 with +0.0% silicon overhead** at 85W TDP (v7.2), achieved not by architectural magic but by the simple engineering trade of **decoder complexity exchanged for execution width** — precisely the same trade that made Apple's M-series leap possible, but applied retroactively to the x86 ecosystem.
 
 # Bemi BIOS
 
