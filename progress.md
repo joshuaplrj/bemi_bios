@@ -14,31 +14,23 @@
 
 ## Directory Structure / Package Preparation (v7.2)
 
-│   └── BemiBiosPkg.dsc   # Platform description (PCDs enabled)
-├── hypervisor/           # Ring -1 engine
-│   ├── vmx/              # VmxCore.c, VmxExitAsm.nasm
-│   ├── svm/              # SvmCore.c, SvmAsm.nasm, SvmExitAsm.nasm
-│   └── common/           # HypervisorBackend.c + HypervisorBackend.h
-├── dbt/                  # DBT pipeline (Rust)
-│   ├── ir.rs             # Intermediate representation (expanded)
-│   ├── decoder/mod.rs    # x86_64 decoder (full primary + two-byte map)
-│   ├── translator/mod.rs # x86-to-micro-op translator
-│   ├── executor/mod.rs   # Micro-op execution engine (all 60 ops)
-│   ├── optimizer/mod.rs  # Peephole/DCE/constant-fold/fusion
-│   ├── codegen/mod.rs    # Custom x86_64 assembler
-│   ├── lib.rs            # Library root
-│   └── x8088/            # 8088 interpreter (8086 emulation)
+```
+bemi_bios/
+├── BemiBiosPkg/          # EDK2 UEFI BIOS Source Package
+│   ├── BemiBiosPkg.dec   # UEFI Package Declaration (v7.2)
+│   ├── BemiBiosPkg.dsc   # Platform description (PCDs enabled)
+│   └── BemiBiosCore/     # Core BIOS UEFI Driver
+├── hypervisor/           # Ring -1 engine (vmx, svm, common)
+├── dbt/                  # DBT pipeline (Rust: ir, decoder, translator, executor, optimizer, codegen, x8088)
 ├── hwcompat/             # CPUID, MSR, APIC, SMM, ACPI, SMBIOS
 ├── legacy/               # CSM (INT 13h/15h/16h), boot protocol, driver compat
 ├── performance/          # Trace cache, TAGE, fusion, interrupt, ROB
-├── tests/                # Test suite + QEMU harness
-├── scripts/              # Build/test scripts
-├── docs/                 # Documentation
+├── simulator/            # Pentium CPU & Apt OS Hardware-Firmware Simulator
+├── tests/                # Test suite + QEMU harness + benchmarks
+├── scripts/              # Build/test scripts & dev utilities
+├── docs/                 # Chronological technical documentation & archives
 ├── build/                # Build output
 └── deploy/               # Deployment artifacts
-
-All 23 C source files + 4 NASM files compile via EDK2.
-All 15 Rust source files compile via Cargo (bemi-dbt library + sim8088 binary).
 ```
 
 ## Build Commands

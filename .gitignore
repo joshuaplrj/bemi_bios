@@ -1,0 +1,22 @@
+# BEMI BIOS Gitignore
+
+# Compiled python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# EDK2 Firmware Build Outputs
+Build/
+*.efi
+*.fd
+
+# Rust DBT Targets
+target/
+Cargo.lock
+
+# Test artifacts and floppy images
+*.img
+bemi_serial.log
+
+# Developer Scratch scripts
+/scratch/reorganize_repo.py

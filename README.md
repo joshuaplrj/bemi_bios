@@ -16,29 +16,57 @@ The files and documentation are structured as follows:
 
 ```
 bemi_bios/
-├── README.md               # Main repository documentation & landing page
-├── TODO.md                 # Project Phase 0-9 TODO checklist (v7.2 aligned)
-├── progress.md             # Project implementation status & package map
-├── docs.md                 # Firmware Ring -1 translation architecture overview
-├── pentium_cpu.py          # Simulated 200MHz Pentium CPU (P54C hardware)
-├── bemi_bios_sim.py        # Bemi BIOS v7.2 dynamic resource allocation framework
-├── apt_os_sim.py           # Apt OS scheduling, paging, & workload generator
-├── run_pentium_validations.py  # Master validation harness & comparison reporter
+├── README.md                 # Main repository documentation & landing page
+├── TODO.md                   # Project Phase 0-9 TODO checklist (v7.2 aligned)
+├── progress.md               # Project implementation status & package map
+├── run_pentium_validations.py # Root-level proxy runner for Pentium validations
+├── run_all_benchmarks.py      # Root-level proxy runner for all benchmarks
 │
-├── bemibiospkg/            # EDK2 UEFI BIOS Source Package
-│   ├── bemibiospkg.dec     # UEFI Package Declaration (v7.2)
-│   ├── bemibiospkg.dsc     # UEFI Platform Description (v7.2)
-│   └── bemibioscore/       # Core BIOS UEFI Driver
-│       ├── bemibioscore.inf # UEFI Build Information (v7.2)
-│       ├── dxe/            # Driver Execution Environment entry point
-│       ├── post/           # Power-On Self-Test (POST) routines
-│       └── protocol/       # Bemi virtual protocol interfaces
+├── BemiBiosPkg/              # EDK2 UEFI BIOS Source Package
+│   ├── BemiBiosPkg.dec       # UEFI Package Declaration (v7.2)
+│   ├── BemiBiosPkg.dsc       # UEFI Platform Description (v7.2)
+│   └── BemiBiosCore/         # Core BIOS UEFI Driver
+│       ├── BemiBiosCore.inf  # UEFI Build Information (v7.2)
+│       ├── dxe/              # Driver Execution Environment entry point
+│       ├── post/             # Power-On Self-Test (POST) routines
+│       └── protocol/         # Bemi virtual protocol interfaces
 │
-├── hypervisor/             # Ring -1 Hypervisor & VMCS/VMCB Translation Engine
-├── hwcompat/               # CPUID spoofing, MSR shadowing, and APIC/SMM handlers
-├── legacy/                 # CSM (Compatibility Support Module) for bios interrupts
-├── performance/            # PTC Trace Cache, NPP branch predictor, and ROB distributor
-└── docs/                   # Chronological technical documentation chapters
+├── dbt/                      # Dynamic Binary Translation (DBT) Pipeline (Rust)
+├── hypervisor/               # Ring -1 Hypervisor & VMCS/VMCB Translation Engine
+├── hwcompat/                 # CPUID spoofing, MSR shadowing, and APIC/SMM handlers
+├── legacy/                   # CSM (Compatibility Support Module) for bios interrupts
+├── performance/              # PTC Trace Cache, NPP branch predictor, and ROB distributor
+│
+├── simulator/                # Simulated 200MHz Pentium CPU & Apt OS (v7.2 aligned)
+│   ├── pentium_cpu.py        # Simulated 200MHz Pentium CPU (P54C hardware)
+│   ├── bemi_bios_sim.py      # Bemi BIOS v7.2 dynamic resource allocation framework
+│   ├── apt_os_sim.py         # Apt OS scheduling, paging, & workload generator
+│   └── run_pentium_validations.py # Master validation harness & comparison reporter
+│
+├── tests/                    # Unit, integration, and benchmark tests
+│   ├── integration/          # FreeDOS/stress QEMU integration tests
+│   ├── benchmarks/           # Physics-grounded benchmark suite models
+│   │   ├── run_all_benchmarks.py # Master benchmark runner
+│   │   └── ...               # Individual benchmark modules
+│   └── TestSuite.c           # Unit test suite C file
+│
+├── docs/                     # Documentation & plans
+│   ├── 01_... to 22_...      # Chronological technical chapters
+│   ├── architecture_overview.md # Firmware Ring -1 translation architecture overview
+│   ├── bemi_book/            # Obsidian documentation vault
+│   ├── research/             # Research logs and experimental data (res-docs)
+│   ├── plans/                # Production & deployment plans (plan)
+│   ├── references/           # Reference paper PDFs (sample-book)
+│   └── archive/              # Diagnostic output logs & search archives
+│
+├── scripts/                  # Build and utility scripts
+│   ├── build.sh              # Firmware compilation wrapper
+│   ├── qemu_test.sh          # QEMU runtime verification runner
+│   └── dev_utilities/        # Recovery, search, and audit tools
+│
+└── deploy/                   # Deployment scripts, makefiles, & boot floppy
+    ├── makefile              # Main build file
+    └── install.sh            # Setup helper
 ```
 
 ---
@@ -147,12 +175,18 @@ Block operations trigger syscalls and hardware interrupts. The stock Pentium pay
 
 ---
 
-## 7. How to Run Validations
+## 7. How to Run
 
 Ensure Python 3 is installed. Navigate to the repository root directory and execute:
 
+### Running Pentium Validations
 ```bash
 python run_pentium_validations.py
 ```
+This runs the 5 Apt OS workloads on the simulated Pentium CPU comparing Stock Legacy BIOS vs Bemi BIOS v7.2 and outputs performance and energy comparisons.
 
-This will run all 5 workloads under both Legacy BIOS and Bemi BIOS v7.2 and output the comprehensive validation metrics.
+### Running the Architecture Benchmark Suite
+```bash
+python run_all_benchmarks.py
+```
+This executes the 10+ architecture models comparing baseline x86 to Bemi BIOS versions v1.1 through v7.2.
