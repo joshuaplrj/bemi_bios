@@ -96,7 +96,7 @@ Strength        : Throughput (144 threads), keeps x86 HW ecosystem intact
 Weakness        : Single-thread = only 1.3x vs x86; severe L1 cache thinning
 ```
 
-### Bemi v1.3 -- ROB Entry Density Update (ROB Size Reduction)
+### Bemi v1.3 — ROB Entry Density Update (ROB Size Reduction)
 ```
 Physical cores  : 12
 Virtual threads : 84   (24 x 3.5 ROB density -- 4B entries vs x86 14B)
@@ -108,6 +108,21 @@ L1 / thread     : (12 x 32 KB) / 84 = 4.57 KB
 INT 21h cost    : 8 cycles (Ring -1 trace cache hit)
 Strength        : 3.5x ROB density from same SRAM budget; no CAM O(n^2) penalty
 Weakness        : Fewer threads than v1.2 (84 vs 144); still needs x86 decoder for fusion
+```
+
+### Bemi v7.2 — Zero-Footprint Singularity (SRAM Repurposing Model)
+```
+Physical cores  : 12
+Virtual threads : 144  (12 cores x 12 temporal threads via DBO)
+Decode latency  : 0.80 cycles (via L0+L3 trace cache hierarchy - 92% hit, 0-cycle bypass)
+IPC / thread    : (4 / 0.80) x 2.00 = 10.00 IPC
+Total TP        : 10.00 x 144 = 1440.0
+TDP             : 85 W  (RISC execution efficiency, zero compute die silicon overhead)
+L1 / thread     : 2.67 KB (plus L2/L3 repurposed cache slices per temporal context)
+ROB Capacity    : 1568 main + 65536 extended entries (repurposed from L2 cache)
+Memory Bandwidth: 192.0 GB/s (3x software compression on 64 GB/s stock DDR5)
+Memory Latency  : 1.50 cycles (MLP-64 hides DRAM: 200c/64 + L0/L3 hits)
+Average Speedup : 17.10x average over baseline x86 across all 10 workloads (zero regressions)
 ```
 
 ---
@@ -132,11 +147,34 @@ python tests/scaling_bottlenecks_test.py
 
 # Run the complete test suite (includes all individual tests):
 python run_all_tests.py
+
+# Run the new Pentium CPU & Apt OS v7.2 validations:
+python run_pentium_validations.py
 ```
 
 ---
 
 ## Final Scores
+
+### v7.2 Zero-Footprint Singularity (10 workload benchmarks vs stock x86)
+
+| Winner | Count | Key mechanism |
+|---|---|---|
+| Bemi v7.2 | 10 / 10 | 144 threads x 10.0 IPC = 1440.0 TP; 3x memory compression; MLP-64 |
+| Native x86 | 0 / 10 | Reclaims CISC decoder area; L0+L3 trace cache |
+
+v7.2 eliminates all previous regressions (e.g. Ray Tracing: 14.00x, Garbage Collection: 11.00x, Bioinformatics: 14.00x) by utilizing extreme SRAM repurposing, temporal threading, pseudo-L4 cache in DRAM, and DBO-guided stride prefetching.
+
+### v7.2 Pentium 200MHz CPU & Apt OS Validation (vs Stock Pentium Baseline)
+
+| Workload | Stock Time | Bemi Time | Stock IPC | Bemi IPC | Speedup | Energy Save |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **01 - Boot & Page Table Setup** | 3.87 ms | 0.31 ms | 0.065 | 0.803 | **12.43x** | **14.63x** |
+| **02 - Thread Context Switching** | 17.50 ms | 0.47 ms | 0.143 | 5.273 | **36.89x** | **43.40x** |
+| **03 - Paged Memory Swapping** | 8.32 ms | 0.16 ms | 0.063 | 3.303 | **52.25x** | **61.47x** |
+| **04 - Shell Bytecode Interpreter** | 49.69 ms | 5.89 ms | 0.111 | 0.934 | **8.43x** | **9.92x** |
+| **05 - Storage Block I/O** | 2.00 ms | 0.11 ms | 0.065 | 1.195 | **18.41x** | **21.66x** |
+| **GEOMETRIC MEAN OVERALL** | | | | | **20.61x** | **24.25x** |
 
 ### v1.3 ROB Entry Density (84-thread model)
 
@@ -155,8 +193,7 @@ python run_all_tests.py
 | Bemi v1.3 | 10 / 10 | 84 threads x 1.3 IPC = 109.2 TP; 4B ROB entries = 3.5x density |
 | Native x86 | 0 / 10 | ROB entries are 14 bytes vs Bemi's 4 bytes |
 
-x86 loses all 10 ROB density benchmarks because Bemi v1.3 packs 3.5x more entries
-into the same SRAM budget without the CAM O(n^2) scaling penalty of a monolithic ROB.
+x86 loses all 10 ROB density benchmarks because Bemi v1.3 packs 3.5x more entries into the same SRAM budget without the CAM O(n^2) scaling penalty of a monolithic ROB.
 
 ### v1.2 Model (12-benchmark suite)
 
