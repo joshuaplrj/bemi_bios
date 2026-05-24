@@ -1,4 +1,4 @@
-# Bemi BIOS v7.2 — Zero-Footprint Singularity & Pentium CPU Validations
+# Bemi BIOS
 
 ## About This Project
 
