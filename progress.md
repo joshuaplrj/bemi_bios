@@ -1,17 +1,19 @@
-# BEMI BIOS v1.3 — Production Progress
+# BEMI BIOS v7.2 — Production Progress
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |---|---|---|
-| **P0-4**: Infrastructure + Hypervisor | **COMPLETE** | Build system fixed, hypervisor runtime (VcpuRun, exit dispatch, host/guest state), v1.3 alignment (84 threads, ROB distrib), all 10 critical C bugs fixed, full CPUID spoofing (128 overrides), MSR shadow (20+ MSRs), APIC EPT trap + interrupt injection |
+| **P0-4**: Infrastructure + Hypervisor | **COMPLETE** | Build system fixed, hypervisor runtime (VcpuRun, exit dispatch, host/guest state), v7.2 alignment (144 threads, ROB config, pseudo-L4), all 10 critical C bugs fixed, full CPUID spoofing (128 overrides), MSR shadow (20+ MSRs), APIC EPT trap + interrupt injection |
 | **P6**: Legacy OS + CSM | **COMPLETE** | INT 13h via EFI_BLOCK_IO, INT 15h E820 from UEFI memory map, INT 16h via ConIn, MBR loading, boot protocol (MBR/GPT scan, UEFI chain-load via LoadImage/StartImage) |
 | **P7**: ACPI + SMBIOS | **COMPLETE** | RSDP + XSDT + MADT + FADT + DSDT + MCFG + HPET at 0xE0000; SMBIOS Type 0/1/4/7/16 at 0xF0000 |
 | **P6**: 8088 emulator | **COMPLETE** | Flag math fixed (OF/DF/AF/CF formulas), interrupt stack frame fix, IN AX,DX dual-byte read, DAA/DAS/AAA/AAS + PUSHA/POPA implemented |
 | **P5**: DBT Pipeline (Rust) | **COMPLETE** | IR redesigned (Vec-based, 33 registers, operand size field), decoder rewritten (Tier 1-2: all 256 primary opcodes + 0x0F two-byte map, VEX/EVEX detection), translator rewritten (all opcode categories mapped), executor rewritten (all 60 micro-ops implemented: memory, control flow, system, ALU), optimizer updated (Vec-based, expanded fusion, constant fold), codegen module created (custom x86_64 assembler: REX, ModRM, SIB, relocations, push/pop/ret/call/jmp encoders) |
 | **P8-9**: Testing + Deploy | **PENDING** | QEMU integration test, hardware validation, USB
-<truncated 389 bytes>
-aration (v1.3)
+| **v7.2 Configuration** | **COMPLETE** | Replaced hardcoded limits with dynamic CPU SRAM capability optimization, temporal SMT scheduling, memory compression, NPP predictor overrides |
+
+## Directory Structure / Package Preparation (v7.2)
+
 │   └── BemiBiosPkg.dsc   # Platform description (PCDs enabled)
 ├── hypervisor/           # Ring -1 engine
 │   ├── vmx/              # VmxCore.c, VmxExitAsm.nasm

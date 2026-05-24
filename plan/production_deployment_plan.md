@@ -1,8 +1,8 @@
 # BEMI BIOS — Production Deployment Plan
 ## Deploying to Real x86 (AMD + Intel) Systems with Full Legacy Compatibility
 
-> **Scope**: Transform the current prototype (`bios_prototype.py`, `hybrid_bemi/`, benchmark suite) into production firmware deployable on physical x86 hardware.
-> **Target**: AMD and Intel x86_64 systems, legacy OS support (MS-DOS through Windows 11, Linux), full driver compatibility.
+> **Scope**: Transform the current prototype (`bios_prototype.py`, `hybrid_bemi/`, benchmark suite) into Bemi BIOS v7.2 production firmware deployable on physical x86 hardware.
+> **Target**: Bemi BIOS v7.2 for AMD and Intel x86_64 systems, legacy OS support (MS-DOS through Windows 11, Linux), full driver compatibility.
 
 ---
 

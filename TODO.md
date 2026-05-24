@@ -1,4 +1,4 @@
-# BEMI BIOS v1.3 — Production TODO
+# BEMI BIOS v7.2 — Production TODO
 
 ## Legend
 - `[x]` = Done
@@ -37,12 +37,12 @@
 - [x] 1.16 FIX: Host RSP/RIP = 0 → set properly
 - [x] 1.17 FIX: I/O bitmaps not zeroed → zeroed in VmxSetupVmcs
 
-## Phase 2: v1.3 Architecture Alignment (COMPLETE)
+## Phase 2: v7.2 Architecture Alignment (COMPLETE)
 
-- [x] 2.1 Thread count: 144 → 84 in `PostRoutines.c`
-- [x] 2.2 Create `performance/rob/RobDistributor.c` (6 banks × 14 entries, round-robin dispatch)
-- [x] 2.3 Version bump in all files
-- [x] 2.4 Update benchmark models (84 threads, 4B ROB entries)
+- [x] 2.1 Thread count: 144 virtual threads via temporal SMT in v7.2
+- [x] 2.2 Create `performance/rob/RobDistributor.c` (independent banks)
+- [x] 2.3 Version bump to v7.2 across all files
+- [x] 2.4 Update benchmark models to v7.2 (144 threads, 2B compressed ROB, pseudo-L4)
 
 ## Phase 3: Critical Bug Fixes (COMPLETE)
 

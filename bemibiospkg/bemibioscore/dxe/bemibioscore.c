@@ -52,7 +52,7 @@ EFI_BEMI_PROTOCOL gBemiProtocol = {
 
 UINT8  gBootMode = 0;
 UINT64 gCpuCount = 0;
-UINT64 gBemiThreadCount = 84;
+UINT64 gBemiThreadCount = 144;
 
 STATIC
 EFI_STATUS
@@ -245,10 +245,10 @@ BemiBiosEntryPoint(
 
   status = PostCalculateThreadCount(gCpuCount, cacheSizes, &gBemiThreadCount);
   if (EFI_ERROR(status)) {
-    gBemiThreadCount = 84;
+    gBemiThreadCount = 144;
   }
 
-  DEBUG((DEBUG_INFO, "BEMI: Detected %lld CPUs, BEMI v1.3 threads: %lld\n", gCpuCount, gBemiThreadCount));
+  DEBUG((DEBUG_INFO, "BEMI: Detected %lld CPUs, BEMI v7.2 threads: %lld\n", gCpuCount, gBemiThreadCount));
 
   status = gRT->GetVariable(
     L"BEMI_NATIVE",

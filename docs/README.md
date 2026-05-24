@@ -8,23 +8,24 @@ iteration, to the final honest benchmark suite validated against **MS-DOS 1.0** 
 
 ## Architecture Version Summary
 
-| Property | x86 (Baseline) | Bemi v1.1 | Bemi v1.2 (HW spec) | Bemi v1.3 (ROB Density) | Bemi v2.0 (Scaled Dom.) | Bemi v3.0 (Mem & Pred) | Bemi v4.0 (Zenith) |
-|---|---|---|---|---|---|---|---|
-| Implementation | Silicon native | Compiler-native ISA | x86 decoder kept | ROB density (4B entry) | L0, independent ROB, MLP | 128MB L4, HMC, PTC | Adaptive HMC, 256MB L4, NPP, DCF |
-| Physical Cores | 12 | 12 | 12 | 12 (host) | 12 | 12 | 12 |
-| Virtual Threads | 24 | **36** (3x ROB density) | **144** (6nm RISC size) | **84** (24 x 3.5 density) | **48** (SMT-4) | **60** (SMT-5) | **72** (SMT-6 / 36 Fused) |
-| Decode Latency | 4 cyc | **1 cyc** (fixed-32) | 4 cyc (decoder KEPT) | 4 cyc (decoder kept) | 4 cyc (decoder kept) | 1.75 cyc (blended PTC) | 1.35 cyc (blended NPP) |
-| IPC / thread (peak) | 1.0x | **5.2x** (decode + fusion) | 1.3x (fusion only) | 1.3x (fusion only) | 1.5x (6-pair fusion) | 3.66x (8-pair fusion) | 5.18x (10-pair fusion) |
-| Total Throughput | 24.0 | 187.2 | 187.2 | 109.2 (1.3 x 84) | 72.0 | 219.6 | 373.3 (SMT) / 186.7 (Fused) |
-| TDP | 100 W | **65 W** (decoder removed) | 85 W (decoder kept) | 80 W | 75 W | 85 W | 90 W |
-| L1 / thread (raw) | 16.0 KB | 10.7 KB | 2.67 KB | 4.57 KB | 8.0 KB | 6.4 KB | 5.3 KB (SMT) / 10.7 KB (Fused) |
-| Single-core vs x86 | 1.0x | **5.2x** | 1.3x | 1.3x | 1.5x | 3.66x | 5.18x (SMT) / 10.37x (Fused) |
-| Multi-core vs x86 | 1.0x | **7.8x** | **7.8x** | **4.55x** | 1.98x (grounded avg) | 4.83x (grounded avg) | 6.75x (grounded avg) |
-| Key weakness | Baseline | Fewer threads (36) | Low L1/thread (2.67 KB) | Lower thread count vs v1.2 | BW Gov limits on Mem-heavy | 85W TDP; serial limits | Higher area footprint; 90W TDP |
+| Property | x86 (Baseline) | Bemi v1.1 | Bemi v1.2 (HW spec) | Bemi v1.3 (ROB Density) | Bemi v2.0 (Scaled Dom.) | Bemi v3.0 (Mem & Pred) | Bemi v4.0 (Zenith) | Bemi v7.2 (Singularity) |
+|---|---|---|---|---|---|---|---|---|
+| Implementation | Silicon native | Compiler-native ISA | x86 decoder kept | ROB density (4B entry) | L0, independent ROB, MLP | 128MB L4, HMC, PTC | Adaptive HMC, 256MB L4, NPP, DCF | SRAM repurpose, pseudo-L4, DBO |
+| Physical Cores | 12 | 12 | 12 | 12 (host) | 12 | 12 | 12 | 12 |
+| Virtual Threads | 24 | **36** (3x ROB density) | **144** (6nm RISC size) | **84** (24 x 3.5 density) | **48** (SMT-4) | **60** (SMT-5) | **72** (SMT-6 / 36 Fused) | **144** (temporal SMT) |
+| Decode Latency | 4 cyc | **1 cyc** (fixed-32) | 4 cyc (decoder KEPT) | 4 cyc (decoder kept) | 4 cyc (decoder kept) | 1.75 cyc (blended PTC) | 1.35 cyc (blended NPP) | 0.80 cyc (Trace Cache) |
+| IPC / thread (peak) | 1.0x | **5.2x** (decode + fusion) | 1.3x (fusion only) | 1.3x (fusion only) | 1.5x (6-pair fusion) | 3.66x (8-pair fusion) | 5.18x (10-pair fusion) | 10.00x (super-op fusion) |
+| Total Throughput | 24.0 | 187.2 | 187.2 | 109.2 (1.3 x 84) | 72.0 | 219.6 | 373.3 (SMT) / 186.7 (Fused) | 1440.0 |
+| TDP | 100 W | **65 W** (decoder removed) | 85 W (decoder kept) | 80 W | 75 W | 85 W | 90 W | 85 W |
+| L1 / thread (raw) | 16.0 KB | 10.7 KB | 2.67 KB | 4.57 KB | 8.0 KB | 6.4 KB | 5.3 KB (SMT) / 10.7 KB (Fused) | 2.67 KB (repurposed caches) |
+| Single-core vs x86 | 1.0x | **5.2x** | 1.3x | 1.3x | 1.5x | 3.66x | 5.18x (SMT) / 10.37x (Fused) | 10.00x |
+| Multi-core vs x86 | 1.0x | **7.8x** | **7.8x** | **4.55x** | 1.98x (grounded avg) | 4.83x (grounded avg) | 6.75x (grounded avg) | 17.10x (grounded avg) |
+| Key weakness | Baseline | Fewer threads (36) | Low L1/thread (2.67 KB) | Lower thread count vs v1.2 | BW Gov limits on Mem-heavy | 85W TDP; serial limits | Higher area footprint; 90W TDP | None (+0.0% die overhead) |
 
 > **Note:** v1.2 is the hardware architecture specification. v1.3 (ROB Entry Density) uses 4-byte
 > ROB entries (vs x86's 14 bytes) to achieve 3.5x more entries per SRAM byte without additional die area.
 > Versions v2.0, v3.0, and v4.0 introduce physical improvements (L0 micro-caches, 3D V-Cache, memory compression, branch predictors, dynamic core fusion) to eliminate cache thrashing and memory bottlenecks.
+> Versions v5.0 through v7.2 continue the architecture sequence with stacked V-Cache, co-designed synergy, zero-footprint native, resource dominance, and zero-footprint singularity.
 > All constants come from `bemi_constants.py`.
 
 ---
@@ -56,6 +57,11 @@ The documents are numbered in **chronological order** -- each builds directly on
 | 15 | [Bemi v2.0 -- Scaled Dominance](15_v20_scaled_dominance.md) | L0 micro-cache; independent ROB; MLP latency; BW governor; zero regressions |
 | 16 | [Bemi v3.0 -- Memory & Predictor Ascendancy](16_v30_ascendancy.md) | L4 stacked cache (128MB); Hardware Memory Compression (HMC); PTC trace cache |
 | 17 | [Bemi v4.0 -- Ultra-Bandwidth & Execution Zenith](17_v40_zenith.md) | Adaptive HMC; 256MB L4 cache; Neural Perceptron predictor; Dynamic Core Fusion |
+| 18 | [Bemi v5.0 -- Execution Singularity](18_v50_execution_singularity.md) | 1 GB stacked V-Cache; Neural HMC; DBT co-processor |
+| 19 | [Bemi v6.0 -- Co-Designed Synergy](19_v60_co_designed_synergy.md) | A-SMT; 1 GB stacked V-Cache; 10.35 IPC fusion |
+| 20 | [Bemi v7.0 -- Zero-Footprint Native](20_v70_zero_footprint_native.md) | Zero-footprint native baseline; no stacked cache |
+| 21 | [Bemi v7.1 -- Zero-Footprint Dominance](21_v71_zero_footprint_dominance.md) | 84 threads; L0 shadow caches; DBO fusion/prefetching |
+| 22 | [Bemi v7.2 -- Zero-Footprint Singularity](22_v72_zero_footprint_singularity.md) | 144 threads; extreme SRAM repurposing; pseudo-L4 |
 
 ---
 

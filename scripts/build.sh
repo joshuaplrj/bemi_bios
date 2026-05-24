@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_DIR="$SCRIPT_DIR/.."
 BUILD_DIR="$PROJ_DIR/build"
 
-echo "BEMI BIOS v1.3 — Production Build"
+echo "BEMI BIOS v7.2 — Production Build"
 echo "==================================="
 
 verify_toolchain() {

@@ -44,8 +44,8 @@ SmbiosInitTables (
   // Format string block (each string is null-terminated, block is double-null terminated)
   AsciiStrCpyS(T0.Strings, sizeof(T0.Strings), "BEMI");
   UINTN s1_len = AsciiStrSize("BEMI");
-  AsciiStrCpyS(T0.Strings + s1_len, sizeof(T0.Strings) - s1_len, "v1.3");
-  UINTN s2_len = AsciiStrSize("v1.3");
+  AsciiStrCpyS(T0.Strings + s1_len, sizeof(T0.Strings) - s1_len, "v7.2");
+  UINTN s2_len = AsciiStrSize("v7.2");
   T0.Strings[s1_len + s2_len] = '\0'; // Double null termination
 
   SmbiosHandle = SMBIOS_HANDLE_PI_RESERVED;

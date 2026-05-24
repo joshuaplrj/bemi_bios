@@ -23,7 +23,7 @@ Copy-Item -Path $Firmware -Destination "$espPath\BOOTX64.EFI" -Force
 
 $nshContent = @"
 @echo -off
-echo BEMI BIOS v1.3 - UEFI Shell Auto-Run
+echo BEMI BIOS v7.2 - UEFI Shell Auto-Run
 \EFI\BOOT\BOOTX64.EFI
 "@
 Set-Content -Path "$Device\startup.nsh" -Value $nshContent

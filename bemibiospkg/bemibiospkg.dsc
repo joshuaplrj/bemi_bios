@@ -1,7 +1,7 @@
 [Defines]
   PLATFORM_NAME                  = BemiBios
   PLATFORM_GUID                  = B1C2D3E4-F5A6-7890-BCDE-F12345678901
-  PLATFORM_VERSION               = 1.3
+  PLATFORM_VERSION               = 7.2
   DSC_SPECIFICATION              = 0x00010005
   OUTPUT_DIRECTORY               = Build/BemiBios
   SUPPORTED_ARCHITECTURES        = X64
