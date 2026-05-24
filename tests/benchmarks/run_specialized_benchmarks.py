@@ -8,7 +8,7 @@ import sys
 import os
 
 # Make sure the tests/ directory is importable
-TEST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests")
+TEST_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "tests"))
 sys.path.insert(0, TEST_DIR)
 
 import video_editing_bench

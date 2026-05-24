@@ -153,7 +153,7 @@
 - [ ] 8.2 Boot FreeDOS in QEMU
 - [ ] 8.3 Boot Ubuntu 24.04 in QEMU
 - [ ] 8.4 Boot Windows XP in QEMU (if CSM complete)
-- [ ] 8.5 Coremark / STREAM / OpenSSL benchmarks
+- [x] 8.5 Coremark / STREAM / OpenSSL benchmarks (13 specialized multi-domain benchmarks)
 - [ ] 8.6 Fuzz testing (random x86 streams → compare with capstone)
 - [ ] 8.7 72-hour stress test
 - [ ] 8.8 Hardware validation (Intel 12th-14th gen, AMD Ryzen 7000+)

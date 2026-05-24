@@ -62,6 +62,8 @@ The documents are numbered in **chronological order** -- each builds directly on
 | 20 | [Bemi v7.0 -- Zero-Footprint Native](20_v70_zero_footprint_native.md) | Zero-footprint native baseline; no stacked cache |
 | 21 | [Bemi v7.1 -- Zero-Footprint Dominance](21_v71_zero_footprint_dominance.md) | 84 threads; L0 shadow caches; DBO fusion/prefetching |
 | 22 | [Bemi v7.2 -- Zero-Footprint Singularity](22_v72_zero_footprint_singularity.md) | 144 threads; extreme SRAM repurposing; pseudo-L4 |
+| 23 | [Specialized Multi-Domain Performance Benchmarks](23_specialized_multi_domain_benchmarks.md) | 13 specialized runtime, crypto, and AI benchmarks |
+| 24 | [Unfinished Roadmap & Remaining Tasks](24_unfinished_roadmap_and_remaining_tasks.md) | Consolidated roadmap, remaining tasks, issues, and microarchitectural questions |
 
 ---
 
@@ -150,6 +152,9 @@ python run_all_tests.py
 
 # Run the new Pentium CPU & Apt OS v7.2 validations:
 python run_pentium_validations.py
+
+# Run the expanded specialized multi-domain benchmarks:
+python run_specialized_benchmarks.py
 ```
 
 ---

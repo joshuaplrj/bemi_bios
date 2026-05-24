@@ -4,6 +4,7 @@
 
 **Bemi BIOS** is an experimental firmware architecture that asks: *what if you kept x86's CISC decoder (for its ecosystem compatibility and macro-op fusion advantages) but replaced its execution back-ends with dense RISC cores, powered by a Ring -1 hypervisor and dynamic binary translation?* This project implements a hardware-firmware translation layer bridging Legacy x86 Operating Systems directly into a high-density, software-defined RISC execution environment.
 
+## Inspiration
 The inspiration for this project started with the release of Apple's M-series chips which got me thinking as to why Intel and AMD despite having a superior instruction set were not able to match the performance and efficiency of ARM chips. So this project is my small solution to make the legacy x86 better in some ways.
 
 

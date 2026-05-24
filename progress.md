@@ -9,7 +9,7 @@
 | **P7**: ACPI + SMBIOS | **COMPLETE** | RSDP + XSDT + MADT + FADT + DSDT + MCFG + HPET at 0xE0000; SMBIOS Type 0/1/4/7/16 at 0xF0000 |
 | **P6**: 8088 emulator | **COMPLETE** | Flag math fixed (OF/DF/AF/CF formulas), interrupt stack frame fix, IN AX,DX dual-byte read, DAA/DAS/AAA/AAS + PUSHA/POPA implemented |
 | **P5**: DBT Pipeline (Rust) | **COMPLETE** | IR redesigned (Vec-based, 33 registers, operand size field), decoder rewritten (Tier 1-2: all 256 primary opcodes + 0x0F two-byte map, VEX/EVEX detection), translator rewritten (all opcode categories mapped), executor rewritten (all 60 micro-ops implemented: memory, control flow, system, ALU), optimizer updated (Vec-based, expanded fusion, constant fold), codegen module created (custom x86_64 assembler: REX, ModRM, SIB, relocations, push/pop/ret/call/jmp encoders) |
-| **P8-9**: Testing + Deploy | **PENDING** | QEMU integration test, hardware validation, USB
+| **P8-9**: Testing + Deploy | **IN PROGRESS** | 13 specialized benchmarks complete, QEMU integration test, hardware validation, USB pending |
 | **v7.2 Configuration** | **COMPLETE** | Replaced hardcoded limits with dynamic CPU SRAM capability optimization, temporal SMT scheduling, memory compression, NPP predictor overrides |
 
 ## Directory Structure / Package Preparation (v7.2)
