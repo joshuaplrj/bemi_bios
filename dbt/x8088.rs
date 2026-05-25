@@ -44,6 +44,10 @@ pub struct DecodedInst8088 {
     pub is_far: bool,
     /// Raw ModR/M byte (0 when instruction has no ModR/M)
     pub modrm: u8,
+    /// Segment override prefix (0=none, else segment register index: 0=ES,1=CS,2=SS,3=DS)
+    pub segment_override: u8,
+    /// Number of prefix bytes consumed before the opcode
+    pub prefix_count: u8,
     /// Instruction category for branch analysis
     pub category: InstCategory,
     /// Human-readable mnemonic
@@ -53,7 +57,7 @@ pub struct DecodedInst8088 {
 impl DecodedInst8088 {
     /// Return the IP of the instruction that follows this one.
     pub fn ip_after(&self, current_ip: u16) -> u16 {
-        current_ip.wrapping_add(self.length as u16)
+        current_ip.wrapping_add(self.length as u16 + self.prefix_count as u16)
     }
 
     /// For branch instructions, return the resolved branch target.
@@ -335,10 +339,41 @@ impl BiosShim {
 
 // ─── 8088 decoder (minimal, enough to run MS-DOS 1.0 binaries) ───────────────
 
+/// Compute total instruction length for ModR/M instructions.
+/// `has_imm` = number of immediate bytes following ModRM (0, 1, or 2).
+fn modrm_inst_len(modrm: u8, has_imm: u8) -> u8 {
+    let mod_field = (modrm >> 6) & 3;
+    let rm = modrm & 7;
+    let disp = match mod_field {
+        0 => if rm == 6 { 2 } else { 0 },
+        1 => 1,
+        2 => 2,
+        _ => 0,
+    };
+    2u8 + has_imm + disp // opcode(1) + modrm(1) + imm + disp
+}
+
 /// Decode one 8088 instruction starting at CS:IP.
 /// Returns `None` if the byte stream is exhausted or unrecognised.
 pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088> {
     let phys = ((cs as u32) << 4).wrapping_add(ip as u32);
+
+    // Consume prefix bytes (segment overrides, LOCK, REP)
+    let mut prefix_off = 0u32;
+    let mut seg_override = 0u8; // 0=none, 1=ES, 2=CS, 3=SS, 4=DS
+    loop {
+        match mem.read8(phys + prefix_off) {
+            0x26 => { seg_override = 1; prefix_off += 1; }  // ES
+            0x2E => { seg_override = 2; prefix_off += 1; }  // CS
+            0x36 => { seg_override = 3; prefix_off += 1; }  // SS
+            0x3E => { seg_override = 4; prefix_off += 1; }  // DS
+            0xF0 => { prefix_off += 1; }                    // LOCK
+            0xF2 | 0xF3 => { prefix_off += 1; }             // REPNE/REP
+            _ => break,
+        }
+    }
+    let prefix_count = prefix_off as u8;
+    let phys = phys + prefix_off; // adjust to skip prefixes
     let b0 = mem.read8(phys);
 
     // We build a minimal decoder for the most common instructions:
@@ -408,7 +443,7 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ADD r/m8, r8 / ADD r/m16, r16 / ADD r8, r/m8 / ADD r16, r/m16
         0x00 | 0x01 | 0x02 | 0x03 => {
             let modrm = mem.read8(phys + 1);
-            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 }; // TODO: memory forms
+            let len = modrm_inst_len(modrm, 0); // TODO: memory forms
             ("ADD", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
         }
         // ADD AL, imm8
@@ -424,7 +459,7 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ── SUB ──────────────────────────────────────────────────────────────
         0x28 | 0x29 | 0x2A | 0x2B => {
             let modrm = mem.read8(phys + 1);
-            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 };
+            let len = modrm_inst_len(modrm, 0);
             ("SUB", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
         }
         // SUB AL, imm8
@@ -440,7 +475,7 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ── CMP ──────────────────────────────────────────────────────────────
         0x38 | 0x39 | 0x3A | 0x3B => {
             let modrm = mem.read8(phys + 1);
-            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 };
+            let len = modrm_inst_len(modrm, 0);
             ("CMP", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
         }
         // CMP AL, imm8
@@ -477,45 +512,52 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ── OR ────────────────────────────────────────────────────────────────
         0x0A | 0x0B => {
             let modrm = mem.read8(phys + 1);
-            ("OR", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("OR", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         0x0C => { let imm = mem.read8(phys + 1) as u16; ("OR", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
         0x0D => { let imm = mem.read16(phys + 1); ("OR", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
         // ── AND ───────────────────────────────────────────────────────────────
         0x20 | 0x21 | 0x22 | 0x23 => {
             let modrm = mem.read8(phys + 1);
-            ("AND", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("AND", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         0x24 => { let imm = mem.read8(phys + 1) as u16; ("AND", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
         0x25 => { let imm = mem.read16(phys + 1); ("AND", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
         // ── XOR ───────────────────────────────────────────────────────────────
         0x30 | 0x31 | 0x32 | 0x33 => {
             let modrm = mem.read8(phys + 1);
-            ("XOR", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("XOR", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         0x34 => { let imm = mem.read8(phys + 1) as u16; ("XOR", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
         0x35 => { let imm = mem.read16(phys + 1); ("XOR", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
         // ── TEST ──────────────────────────────────────────────────────────────
         0x84 | 0x85 => {
             let modrm = mem.read8(phys + 1);
-            ("TEST", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("TEST", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         0xA8 => { let imm = mem.read8(phys + 1) as u16; ("TEST", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
         0xA9 => { let imm = mem.read16(phys + 1); ("TEST", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
         // ── MOV ModRM ─────────────────────────────────────────────────────────
         0x88 | 0x89 | 0x8A | 0x8B => {
             let modrm = mem.read8(phys + 1);
-            ("MOV", InstCategory::Mov, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("MOV", InstCategory::Mov, len, 0u16, 0, 0i16, false, modrm)
         }
         // ── MOV Sreg ──────────────────────────────────────────────────────────
         0x8C | 0x8E => {
             let modrm = mem.read8(phys + 1);
-            ("MOV", InstCategory::Mov, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("MOV", InstCategory::Mov, len, 0u16, 0, 0i16, false, modrm)
         }
         // ── XCHG ──────────────────────────────────────────────────────────────
         0x86 | 0x87 => {
             let modrm = mem.read8(phys + 1);
-            ("XCHG", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("XCHG", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         0x91..=0x97 => {
             ("XCHG", InstCategory::Alu, 1, 0u16, 0, 0i16, false, 0u8)
@@ -526,7 +568,8 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ── LEA ───────────────────────────────────────────────────────────────
         0x8D => {
             let modrm = mem.read8(phys + 1);
-            ("LEA", InstCategory::Other, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("LEA", InstCategory::Other, len, 0u16, 0, 0i16, false, modrm)
         }
         // ── LOOP / JCXZ ───────────────────────────────────────────────────────
         0xE0 => { let rel = mem.read8(phys + 1) as i8 as i16; ("LOOPNE", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8) }
@@ -536,23 +579,26 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         // ── Shift/Rotate (D0-D3) ──────────────────────────────────────────────
         0xD0 | 0xD1 | 0xD2 | 0xD3 => {
             let modrm = mem.read8(phys + 1);
-            ("SHIFT", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("SHIFT", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         // ── Group 1 (0x80-0x83): ADD/OR/ADC/SBB/AND/SUB/XOR/CMP imm ──────────
         0x80..=0x83 => {
             let modrm = mem.read8(phys + 1);
-            let (imm, len) = match b0 {
-                0x80 | 0x82 => (mem.read8(phys + 2) as u16, 3u8),
-                0x81 => (mem.read16(phys + 2), 4u8),
-                0x83 => (mem.read8(phys + 2) as i8 as i16 as u16, 3u8),
-                _ => (0u16, 2u8),
+            let (imm, imm_bytes) = match b0 {
+                0x80 | 0x82 => (mem.read8(phys + 2) as u16, 1u8),
+                0x81 => (mem.read16(phys + 2), 2u8),
+                0x83 => (mem.read8(phys + 2) as i8 as i16 as u16, 1u8),
+                _ => (0u16, 1u8),
             };
+            let len = modrm_inst_len(modrm, imm_bytes);
             ("GRP1", InstCategory::Alu, len, imm, 0, 0i16, false, modrm)
         }
         // ── Group 3 (0xF6-F0xF7): TEST/NOT/NEG/MUL/IMUL/DIV/IDIV ─────────────
         0xF6 | 0xF7 => {
             let modrm = mem.read8(phys + 1);
-            ("GRP3", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+            let len = modrm_inst_len(modrm, 0);
+            ("GRP3", InstCategory::Alu, len, 0u16, 0, 0i16, false, modrm)
         }
         // ── Flag operations ───────────────────────────────────────────────────
         0xF5 => ("CMC", InstCategory::System, 1, 0, 0, 0, false, 0u8),
@@ -565,6 +611,26 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         0x9F => ("LAHF", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
         // ── XLAT ──────────────────────────────────────────────────────────────
         0xD7 => ("XLAT", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        // ── IN / OUT ─────────────────────────────────────────────────────────
+        0xE4 => { let imm = mem.read8(phys + 1) as u16; ("IN", InstCategory::Other, 2, imm, 0, 0, false, 0u8) }
+        0xE5 => { let imm = mem.read8(phys + 1) as u16; ("IN", InstCategory::Other, 2, imm, 0, 0, false, 0u8) }
+        0xE6 => { let imm = mem.read8(phys + 1) as u16; ("OUT", InstCategory::Other, 2, imm, 0, 0, false, 0u8) }
+        0xE7 => { let imm = mem.read8(phys + 1) as u16; ("OUT", InstCategory::Other, 2, imm, 0, 0, false, 0u8) }
+        0xEC => ("IN", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0xED => ("IN", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0xEE => ("OUT", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0xEF => ("OUT", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        // ── String ops ────────────────────────────────────────────────────────
+        0xA4 => ("MOVSB", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xA5 => ("MOVSW", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xA6 => ("CMPSB", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xA7 => ("CMPSW", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAA => ("STOSB", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAB => ("STOSW", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAC => ("LODSB", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAD => ("LODSW", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAE => ("SCASB", InstCategory::String, 1, 0, 0, 0, false, 0u8),
+        0xAF => ("SCASW", InstCategory::String, 1, 0, 0, 0, false, 0u8),
         // Generic: unknown / not decoded — skip 1 byte
         _ => ("???", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
     };
@@ -578,6 +644,8 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         displacement: disp,
         is_far,
         modrm: modrm_byte,
+        segment_override: seg_override,
+        prefix_count,
         category,
         mnemonic,
     })
@@ -636,9 +704,10 @@ impl X8088Executor {
             println!("  [{:04X}:{:04X}] ({:05X}) {}", cs, ip, phys, inst.mnemonic);
         }
 
-        // Advance IP over this instruction by default
-        self.cpu.ip = self.cpu.ip.wrapping_add(inst.length as u16);
-        self.cycles += inst.length as u64 + 4; // rough CPI estimate
+        // Advance IP over this instruction by default (body + prefix bytes)
+        let total_len = inst.length as u16 + inst.prefix_count as u16;
+        self.cpu.ip = self.cpu.ip.wrapping_add(total_len);
+        self.cycles += total_len as u64 + 4; // rough CPI estimate
 
         // Dispatch
         match inst.category {
@@ -1305,9 +1374,147 @@ impl X8088Executor {
                     _ => {}
                 }
             }
+            InstCategory::String => {
+                let op = inst.opcode as u8;
+                let inc: u16 = if self.cpu.df() { 0xFFFFu16 } else { 1u16 };
+                let inc2: u16 = if self.cpu.df() { 0xFFFEu16 } else { 2u16 };
+                match op {
+                    0xA4 => {
+                        // MOVSB
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let b = self.mem.read8(src);
+                        self.mem.write8(dst, b);
+                        self.cpu.si = self.cpu.si.wrapping_add(inc);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc);
+                    }
+                    0xA5 => {
+                        // MOVSW
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let w = self.mem.read16(src);
+                        self.mem.write16(dst, w);
+                        self.cpu.si = self.cpu.si.wrapping_add(inc2);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc2);
+                    }
+                    0xA6 => {
+                        // CMPSB
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let a = self.mem.read8(src) as u16;
+                        let b = self.mem.read8(dst) as u16;
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                        self.cpu.si = self.cpu.si.wrapping_add(inc);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc);
+                    }
+                    0xA7 => {
+                        // CMPSW
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let a = self.mem.read16(src);
+                        let b = self.mem.read16(dst);
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                        self.cpu.si = self.cpu.si.wrapping_add(inc2);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc2);
+                    }
+                    0xAA => {
+                        // STOSB
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        self.mem.write8(dst, (self.cpu.ax & 0xFF) as u8);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc);
+                    }
+                    0xAB => {
+                        // STOSW
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        self.mem.write16(dst, self.cpu.ax);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc2);
+                    }
+                    0xAC => {
+                        // LODSB
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        let b = self.mem.read8(src) as u16;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | b;
+                        self.cpu.si = self.cpu.si.wrapping_add(inc);
+                    }
+                    0xAD => {
+                        // LODSW
+                        let src = self.cpu.linear(self.cpu.ds, self.cpu.si);
+                        self.cpu.ax = self.mem.read16(src);
+                        self.cpu.si = self.cpu.si.wrapping_add(inc2);
+                    }
+                    0xAE => {
+                        // SCASB
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = self.mem.read8(dst) as u16;
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc);
+                    }
+                    0xAF => {
+                        // SCASW
+                        let dst = self.cpu.linear(self.cpu.es, self.cpu.di);
+                        let a = self.cpu.ax;
+                        let b = self.mem.read16(dst);
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                        self.cpu.di = self.cpu.di.wrapping_add(inc2);
+                    }
+                    _ => {}
+                }
+            }
             _ => {
                 let op = inst.opcode as u8;
                 match op {
+                    // IN/OUT operations
+                    0xE4 => {
+                        // IN AL, imm8
+                        let _port = inst.immediate;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | 0x00u16;
+                    }
+                    0xE5 => {
+                        // IN AX, imm8
+                        let _port = inst.immediate;
+                        self.cpu.ax = 0;
+                    }
+                    0xE6 => {
+                        // OUT imm8, AL – ignore
+                    }
+                    0xE7 => {
+                        // OUT imm8, AX – ignore
+                    }
+                    0xEC => {
+                        // IN AL, DX – read from COM1/status ports
+                        let port = self.cpu.dx;
+                        let val = match port {
+                            0x3FD | 0x3FE | 0x3FF => 0x60, // COM1 LSR: ready
+                            _ => 0x00,
+                        };
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | val as u16;
+                    }
+                    0xED => {
+                        // IN AX, DX
+                        let port = self.cpu.dx;
+                        let val: u16 = match port {
+                            0x3F8 => 0x0000, // COM1 data: no input
+                            _ => 0x0000,
+                        };
+                        self.cpu.ax = val;
+                    }
+                    0xEE => {
+                        // OUT DX, AL – to COM1
+                        let port = self.cpu.dx;
+                        if port == 0x3F8 {
+                            let ch = (self.cpu.ax & 0xFF) as u8;
+                            if ch == b'\r' { print!("\r\n"); }
+                            else if ch != 0 { print!("{}", ch as char); }
+                        }
+                    }
+                    0xEF => {
+                        // OUT DX, AX – ignore
+                    }
                     0x98 => {
                         // CBW: sign-extend AL → AX
                         let al = (self.cpu.ax & 0xFF) as i8 as i16 as u16;

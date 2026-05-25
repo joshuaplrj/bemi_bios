@@ -145,7 +145,7 @@ fn cmd_decode(args: &[String]) {
         match decode_8088(&exec.mem, 0x0000, ip) {
             Some(inst) => {
                 let phys = ((0u32) << 4) + ip as u32;
-                let len = inst.length as usize;
+                let len = inst.length as usize + inst.prefix_count as usize;
                 let raw: Vec<String> = (0..len)
                     .map(|i| format!("{:02X}", exec.mem.read8(phys + i as u32)))
                     .collect();
