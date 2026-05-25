@@ -160,6 +160,29 @@ impl Cpu8088 {
         self.set_sf((result as i16) < 0);
         self.set_of(((a ^ b) & 0x8000) != 0 && ((a ^ result) & 0x8000) != 0);
     }
+
+    /// Update logic flags (AND/OR/XOR/TEST): CF=0, OF=0.
+    pub fn update_flags_logic(&mut self, result: u16) {
+        self.set_cf(false);
+        self.set_of(false);
+        self.set_pf(Self::parity(result as u8));
+        self.set_zf(result == 0);
+        self.set_sf((result as i16) < 0);
+    }
+
+    /// Update flags after shift/rotate. CF = last bit shifted out.
+    /// OF: for single-bit shift, set if sign changed.
+    pub fn update_flags_shift(&mut self, result: u16, cf_out: bool, single_bit: bool, old_result: u16) {
+        self.set_cf(cf_out);
+        if single_bit {
+            let old_sf = (old_result as i16) < 0;
+            let new_sf = (result as i16) < 0;
+            self.set_of(old_sf != new_sf);
+        }
+        self.set_pf(Self::parity(result as u8));
+        self.set_zf(result == 0);
+        self.set_sf((result as i16) < 0);
+    }
 }
 
 // ─── 1 MB memory model ───────────────────────────────────────────────────────
@@ -216,12 +239,46 @@ impl BiosShim {
     pub fn handle_int(&mut self, cpu: &mut Cpu8088, mem: &mut Memory8088, int_num: u8) -> bool {
         match int_num {
             0x10 => {
-                // Video — ignore for now
+                // Video services
+                let ah = (cpu.ax >> 8) as u8;
+                match ah {
+                    0x0E => {
+                        // Teletype output: write AL with attributes in BL
+                        let ch = (cpu.ax & 0xFF) as u8;
+                        if ch == b'\r' { print!("\r\n"); }
+                        else { print!("{}", ch as char); }
+                    }
+                    _ => {}
+                }
+                true
+            }
+            0x13 => {
+                // Disk services — minimal read
+                let ah = (cpu.ax >> 8) as u8;
+                if ah == 0x02 {
+                    // Read sectors: DL=drive, CH=cyl, CL=sector, DH=head, AL=count, ES:BX=buffer
+                    // For simulation, just return success (AH=0, AL=0)
+                    cpu.ax = 0;
+                }
                 true
             }
             0x16 => {
                 // Keyboard — return no keypress (AH=0 scan=0, AL=0)
                 cpu.ax = 0;
+                true
+            }
+            0x1A => {
+                // RTC / System Timer
+                let ah = (cpu.ax >> 8) as u8;
+                match ah {
+                    0x00 => {
+                        // Read system clock counter (18.2 Hz ticks since midnight)
+                        cpu.cx = 0; // high word
+                        cpu.dx = 0; // low word
+                        cpu.ax &= 0x00FF; // AL cleared (no midnight flag)
+                    }
+                    _ => {}
+                }
                 true
             }
             0x20 => {
@@ -233,6 +290,12 @@ impl BiosShim {
                 // DOS services
                 let ah = (cpu.ax >> 8) as u8;
                 match ah {
+                    0x01 => {
+                        // Character input with echo — return 'A'
+                        let ch = b'A';
+                        print!("{}", ch as char);
+                        cpu.ax = (cpu.ax & 0xFF00) | ch as u16;
+                    }
                     0x02 => {
                         // Character output
                         let ch = (cpu.dx & 0xFF) as u8;
@@ -247,6 +310,15 @@ impl BiosShim {
                             print!("{}", c as char);
                             addr = addr.wrapping_add(1);
                         }
+                    }
+                    0x2C => {
+                        // Get system time (CH=hour, CL=min, DH=sec, DL=hundredths)
+                        cpu.cx = 0;
+                        cpu.dx = 0;
+                    }
+                    0x30 => {
+                        // Get DOS version
+                        cpu.ax = 0x0100; // version 1.00
                     }
                     0x4C => {
                         // Exit with return code
@@ -389,6 +461,110 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         0x48..=0x4F => {
             ("DEC", InstCategory::Alu, 1, 0u16, 0, 0i16, false, 0u8)
         }
+        // ── PUSH Sreg / POP Sreg ─────────────────────────────────────────────
+        0x06 => ("PUSH ES", InstCategory::Push, 1, 0, 0, 0, false, 0u8),
+        0x0E => ("PUSH CS", InstCategory::Push, 1, 0, 0, 0, false, 0u8),
+        0x16 => ("PUSH SS", InstCategory::Push, 1, 0, 0, 0, false, 0u8),
+        0x1E => ("PUSH DS", InstCategory::Push, 1, 0, 0, 0, false, 0u8),
+        0x07 => ("POP ES", InstCategory::Pop, 1, 0, 0, 0, false, 0u8),
+        0x1F => ("POP DS", InstCategory::Pop, 1, 0, 0, 0, false, 0u8),
+        0x17 => ("POP SS", InstCategory::Pop, 1, 0, 0, 0, false, 0u8),
+        // ── DAA / DAS / AAA / AAS ────────────────────────────────────────────
+        0x27 => ("DAA", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0x2F => ("DAS", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0x37 => ("AAA", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0x3F => ("AAS", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        // ── OR ────────────────────────────────────────────────────────────────
+        0x0A | 0x0B => {
+            let modrm = mem.read8(phys + 1);
+            ("OR", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        0x0C => { let imm = mem.read8(phys + 1) as u16; ("OR", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
+        0x0D => { let imm = mem.read16(phys + 1); ("OR", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
+        // ── AND ───────────────────────────────────────────────────────────────
+        0x20 | 0x21 | 0x22 | 0x23 => {
+            let modrm = mem.read8(phys + 1);
+            ("AND", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        0x24 => { let imm = mem.read8(phys + 1) as u16; ("AND", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
+        0x25 => { let imm = mem.read16(phys + 1); ("AND", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
+        // ── XOR ───────────────────────────────────────────────────────────────
+        0x30 | 0x31 | 0x32 | 0x33 => {
+            let modrm = mem.read8(phys + 1);
+            ("XOR", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        0x34 => { let imm = mem.read8(phys + 1) as u16; ("XOR", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
+        0x35 => { let imm = mem.read16(phys + 1); ("XOR", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
+        // ── TEST ──────────────────────────────────────────────────────────────
+        0x84 | 0x85 => {
+            let modrm = mem.read8(phys + 1);
+            ("TEST", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        0xA8 => { let imm = mem.read8(phys + 1) as u16; ("TEST", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8) }
+        0xA9 => { let imm = mem.read16(phys + 1); ("TEST", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8) }
+        // ── MOV ModRM ─────────────────────────────────────────────────────────
+        0x88 | 0x89 | 0x8A | 0x8B => {
+            let modrm = mem.read8(phys + 1);
+            ("MOV", InstCategory::Mov, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        // ── MOV Sreg ──────────────────────────────────────────────────────────
+        0x8C | 0x8E => {
+            let modrm = mem.read8(phys + 1);
+            ("MOV", InstCategory::Mov, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        // ── XCHG ──────────────────────────────────────────────────────────────
+        0x86 | 0x87 => {
+            let modrm = mem.read8(phys + 1);
+            ("XCHG", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        0x91..=0x97 => {
+            ("XCHG", InstCategory::Alu, 1, 0u16, 0, 0i16, false, 0u8)
+        }
+        // ── CBW / CWD ─────────────────────────────────────────────────────────
+        0x98 => ("CBW", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0x99 => ("CWD", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        // ── LEA ───────────────────────────────────────────────────────────────
+        0x8D => {
+            let modrm = mem.read8(phys + 1);
+            ("LEA", InstCategory::Other, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        // ── LOOP / JCXZ ───────────────────────────────────────────────────────
+        0xE0 => { let rel = mem.read8(phys + 1) as i8 as i16; ("LOOPNE", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8) }
+        0xE1 => { let rel = mem.read8(phys + 1) as i8 as i16; ("LOOPE", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8) }
+        0xE2 => { let rel = mem.read8(phys + 1) as i8 as i16; ("LOOP", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8) }
+        0xE3 => { let rel = mem.read8(phys + 1) as i8 as i16; ("JCXZ", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8) }
+        // ── Shift/Rotate (D0-D3) ──────────────────────────────────────────────
+        0xD0 | 0xD1 | 0xD2 | 0xD3 => {
+            let modrm = mem.read8(phys + 1);
+            ("SHIFT", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        // ── Group 1 (0x80-0x83): ADD/OR/ADC/SBB/AND/SUB/XOR/CMP imm ──────────
+        0x80..=0x83 => {
+            let modrm = mem.read8(phys + 1);
+            let (imm, len) = match b0 {
+                0x80 | 0x82 => (mem.read8(phys + 2) as u16, 3u8),
+                0x81 => (mem.read16(phys + 2), 4u8),
+                0x83 => (mem.read8(phys + 2) as i8 as i16 as u16, 3u8),
+                _ => (0u16, 2u8),
+            };
+            ("GRP1", InstCategory::Alu, len, imm, 0, 0i16, false, modrm)
+        }
+        // ── Group 3 (0xF6-F0xF7): TEST/NOT/NEG/MUL/IMUL/DIV/IDIV ─────────────
+        0xF6 | 0xF7 => {
+            let modrm = mem.read8(phys + 1);
+            ("GRP3", InstCategory::Alu, 2, 0u16, 0, 0i16, false, modrm)
+        }
+        // ── Flag operations ───────────────────────────────────────────────────
+        0xF5 => ("CMC", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        0xF8 => ("CLC", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        0xF9 => ("STC", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        0xFC => ("CLD", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        0xFD => ("STD", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        // ── SAHF / LAHF ──────────────────────────────────────────────────────
+        0x9E => ("SAHF", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        0x9F => ("LAHF", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
+        // ── XLAT ──────────────────────────────────────────────────────────────
+        0xD7 => ("XLAT", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
         // Generic: unknown / not decoded — skip 1 byte
         _ => ("???", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
     };
@@ -471,6 +647,18 @@ impl X8088Executor {
                     0xF4 => { self.cpu.halted = true; return false; } // HLT
                     0xFA => { self.cpu.interrupts_enabled = false; }  // CLI
                     0xFB => { self.cpu.interrupts_enabled = true; }   // STI
+                    0xF8 => { self.cpu.set_cf(false); }              // CLC
+                    0xF9 => { self.cpu.set_cf(true); }               // STC
+                    0xF5 => {                                        // CMC
+                        let cf = self.cpu.cf();
+                        self.cpu.set_cf(!cf);
+                    }
+                    0xFC => {                                        // CLD
+                        self.cpu.flags &= !0x0400u16;
+                    }
+                    0xFD => {                                        // STD
+                        self.cpu.flags |= 0x0400u16;
+                    }
                     0xCD => {
                         // INT imm8
                         let int_num = inst.immediate as u8;
@@ -488,28 +676,63 @@ impl X8088Executor {
                 }
             }
             InstCategory::Jcc => {
-                let cond = inst.opcode as u8 & 0x0F;
-                let taken = match cond {
-                    0 => self.cpu.of_flag(),
-                    1 => !self.cpu.of_flag(),
-                    2 => self.cpu.cf(),
-                    3 => !self.cpu.cf(),
-                    4 => self.cpu.zf(),
-                    5 => !self.cpu.zf(),
-                    6 => self.cpu.cf() || self.cpu.zf(),
-                    7 => !self.cpu.cf() && !self.cpu.zf(),
-                    8 => self.cpu.sf(),
-                    9 => !self.cpu.sf(),
-                    0xA => self.cpu.pf(),
-                    0xB => !self.cpu.pf(),
-                    0xC => self.cpu.sf() != self.cpu.of_flag(),
-                    0xD => self.cpu.sf() == self.cpu.of_flag(),
-                    0xE => self.cpu.zf() || (self.cpu.sf() != self.cpu.of_flag()),
-                    0xF => !self.cpu.zf() && (self.cpu.sf() == self.cpu.of_flag()),
-                    _ => true,
-                };
-                if taken {
-                    self.cpu.ip = inst.branch_target(ip);
+                let op = inst.opcode as u8;
+                // LOOP / JCXZ family (0xE0-0xE3) use CX as counter
+                if op >= 0xE0 && op <= 0xE3 {
+                    match op {
+                        0xE2 => {
+                            // LOOP: decrement CX, jump if CX != 0
+                            self.cpu.cx = self.cpu.cx.wrapping_sub(1);
+                            if self.cpu.cx != 0 {
+                                self.cpu.ip = inst.branch_target(ip);
+                            }
+                        }
+                        0xE1 => {
+                            // LOOPE/LOOPZ: decrement CX, jump if CX != 0 and ZF=1
+                            self.cpu.cx = self.cpu.cx.wrapping_sub(1);
+                            if self.cpu.cx != 0 && self.cpu.zf() {
+                                self.cpu.ip = inst.branch_target(ip);
+                            }
+                        }
+                        0xE0 => {
+                            // LOOPNE/LOOPNZ: decrement CX, jump if CX != 0 and ZF=0
+                            self.cpu.cx = self.cpu.cx.wrapping_sub(1);
+                            if self.cpu.cx != 0 && !self.cpu.zf() {
+                                self.cpu.ip = inst.branch_target(ip);
+                            }
+                        }
+                        0xE3 => {
+                            // JCXZ: jump if CX == 0
+                            if self.cpu.cx == 0 {
+                                self.cpu.ip = inst.branch_target(ip);
+                            }
+                        }
+                        _ => {}
+                    }
+                } else {
+                    let cond = inst.opcode as u8 & 0x0F;
+                    let taken = match cond {
+                        0 => self.cpu.of_flag(),
+                        1 => !self.cpu.of_flag(),
+                        2 => self.cpu.cf(),
+                        3 => !self.cpu.cf(),
+                        4 => self.cpu.zf(),
+                        5 => !self.cpu.zf(),
+                        6 => self.cpu.cf() || self.cpu.zf(),
+                        7 => !self.cpu.cf() && !self.cpu.zf(),
+                        8 => self.cpu.sf(),
+                        9 => !self.cpu.sf(),
+                        0xA => self.cpu.pf(),
+                        0xB => !self.cpu.pf(),
+                        0xC => self.cpu.sf() != self.cpu.of_flag(),
+                        0xD => self.cpu.sf() == self.cpu.of_flag(),
+                        0xE => self.cpu.zf() || (self.cpu.sf() != self.cpu.of_flag()),
+                        0xF => !self.cpu.zf() && (self.cpu.sf() == self.cpu.of_flag()),
+                        _ => true,
+                    };
+                    if taken {
+                        self.cpu.ip = inst.branch_target(ip);
+                    }
                 }
             }
             InstCategory::Call => {
@@ -531,24 +754,114 @@ impl X8088Executor {
                 }
             }
             InstCategory::Push => {
-                // PUSH reg (50-57 / 58-5F handled the same for stack accounting)
-                let reg_idx = inst.opcode as u8 & 0x07;
-                let val = self.read_gp16(reg_idx);
-                self.cpu.sp = self.cpu.sp.wrapping_sub(2);
-                let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
-                self.mem.write16(addr, val);
+                let op = inst.opcode as u8;
+                if op >= 0x50 && op <= 0x57 {
+                    // PUSH reg (50-57)
+                    let reg_idx = op & 0x07;
+                    let val = self.read_gp16(reg_idx);
+                    self.cpu.sp = self.cpu.sp.wrapping_sub(2);
+                    let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
+                    self.mem.write16(addr, val);
+                } else {
+                    // PUSH Sreg
+                    let sreg = match op {
+                        0x06 => self.cpu.es,
+                        0x0E => self.cpu.cs,
+                        0x16 => self.cpu.ss,
+                        0x1E => self.cpu.ds,
+                        _ => return !self.bios.dos_break,
+                    };
+                    self.cpu.sp = self.cpu.sp.wrapping_sub(2);
+                    let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
+                    self.mem.write16(addr, sreg);
+                }
             }
             InstCategory::Pop => {
-                let reg_idx = inst.opcode as u8 & 0x07;
-                let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
-                let val = self.mem.read16(addr);
-                self.cpu.sp = self.cpu.sp.wrapping_add(2);
-                self.write_gp16(reg_idx, val);
+                let op = inst.opcode as u8;
+                if op >= 0x58 && op <= 0x5F {
+                    // POP reg (58-5F)
+                    let reg_idx = op & 0x07;
+                    let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
+                    let val = self.mem.read16(addr);
+                    self.cpu.sp = self.cpu.sp.wrapping_add(2);
+                    self.write_gp16(reg_idx, val);
+                } else {
+                    // POP Sreg
+                    let addr = self.cpu.linear(self.cpu.ss, self.cpu.sp);
+                    let val = self.mem.read16(addr);
+                    self.cpu.sp = self.cpu.sp.wrapping_add(2);
+                    match op {
+                        0x07 => self.cpu.es = val,
+                        0x17 => self.cpu.ss = val,
+                        0x1F => self.cpu.ds = val,
+                        _ => {}
+                    }
+                }
             }
             InstCategory::Mov => {
-                // MOV reg, imm (B0-BF)
-                let reg_idx = inst.opcode as u8 & 0x07;
-                self.write_gp16(reg_idx, inst.immediate);
+                let op = inst.opcode as u8;
+                if (0xB0..=0xBF).contains(&op) {
+                    // MOV reg, imm
+                    let reg_idx = op & 0x07;
+                    let wide = op & 0x08 != 0;
+                    if wide {
+                        self.write_gp16(reg_idx, inst.immediate);
+                    } else {
+                        // 8-bit: write low byte
+                        let lo = (self.read_gp16(reg_idx) & 0xFF00) | (inst.immediate as u16 & 0xFF);
+                        self.write_gp16(reg_idx, lo);
+                    }
+                } else {
+                    // MOV with ModRM (88-8B, 8C, 8E)
+                    let modrm = inst.modrm;
+                    let rm = modrm & 0x07;
+                    let reg = (modrm >> 3) & 0x07;
+                    match op {
+                        0x88 => {
+                            // MOV r/m8, r8 — write low byte of reg to r/m
+                            let src = self.read_gp16(reg) as u8;
+                            let old = self.read_gp16(rm);
+                            self.write_gp16(rm, (old & 0xFF00) | src as u16);
+                        }
+                        0x89 => {
+                            // MOV r/m16, r16
+                            self.write_gp16(rm, self.read_gp16(reg));
+                        }
+                        0x8A => {
+                            // MOV r8, r/m8
+                            let src = self.read_gp16(rm) as u8;
+                            let old = self.read_gp16(reg);
+                            self.write_gp16(reg, (old & 0xFF00) | src as u16);
+                        }
+                        0x8B => {
+                            // MOV r16, r/m16
+                            self.write_gp16(reg, self.read_gp16(rm));
+                        }
+                        0x8C => {
+                            // MOV r/m16, Sreg (reg field encodes Sreg: 0=ES,1=CS,2=SS,3=DS)
+                            let sreg_val = match reg {
+                                0 => self.cpu.es,
+                                1 => self.cpu.cs,
+                                2 => self.cpu.ss,
+                                3 => self.cpu.ds,
+                                _ => 0,
+                            };
+                            self.write_gp16(rm, sreg_val);
+                        }
+                        0x8E => {
+                            // MOV Sreg, r/m16
+                            let val = self.read_gp16(rm);
+                            match reg {
+                                0 => self.cpu.es = val,
+                                1 => self.cpu.cs = val,
+                                2 => self.cpu.ss = val,
+                                3 => self.cpu.ds = val,
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
             }
             InstCategory::Alu => {
                 match inst.opcode as u8 {
@@ -652,11 +965,452 @@ impl X8088Executor {
                         self.write_gp16(idx, result);
                         self.cpu.update_flags_sub(result, a, 1, false);
                     }
+                    // ── AND ──────────────────────────────────────────────────────
+                    0x20..=0x23 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let (dst_idx, src_idx): (u8, u8) = match inst.opcode as u8 {
+                            0x20 | 0x21 => (rm, reg),
+                            _            => (reg, rm),
+                        };
+                        let a = self.read_gp16(dst_idx);
+                        let b = self.read_gp16(src_idx);
+                        let result = a & b;
+                        self.write_gp16(dst_idx, result);
+                        self.cpu.update_flags_logic(result);
+                    }
+                    0x24 => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = a & b;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | result;
+                        self.cpu.update_flags_logic(result as u16);
+                    }
+                    0x25 => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a & b;
+                        self.cpu.ax = result;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    // ── OR ───────────────────────────────────────────────────────
+                    0x0A | 0x0B => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let a = self.read_gp16(rm);
+                        let b = self.read_gp16(reg);
+                        let result = a | b;
+                        self.write_gp16(rm, result);
+                        self.cpu.update_flags_logic(result);
+                    }
+                    0x0C => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = a | b;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | result;
+                        self.cpu.update_flags_logic(result as u16);
+                    }
+                    0x0D => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a | b;
+                        self.cpu.ax = result;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    // ── XOR ──────────────────────────────────────────────────────
+                    0x30..=0x33 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let (dst_idx, src_idx): (u8, u8) = match inst.opcode as u8 {
+                            0x30 | 0x31 => (rm, reg),
+                            _            => (reg, rm),
+                        };
+                        let a = self.read_gp16(dst_idx);
+                        let b = self.read_gp16(src_idx);
+                        let result = a ^ b;
+                        self.write_gp16(dst_idx, result);
+                        self.cpu.update_flags_logic(result);
+                    }
+                    0x34 => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = a ^ b;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | result;
+                        self.cpu.update_flags_logic(result as u16);
+                    }
+                    0x35 => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a ^ b;
+                        self.cpu.ax = result;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    // ── TEST ─────────────────────────────────────────────────────
+                    0x84 | 0x85 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let a = self.read_gp16(rm);
+                        let b = self.read_gp16(reg);
+                        let result = a & b;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    0xA8 => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = a & b;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    0xA9 => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a & b;
+                        self.cpu.update_flags_logic(result);
+                    }
+                    // ── XCHG ─────────────────────────────────────────────────────
+                    0x86 | 0x87 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let a = self.read_gp16(rm);
+                        let b = self.read_gp16(reg);
+                        self.write_gp16(rm, b);
+                        self.write_gp16(reg, a);
+                    }
+                    0x91..=0x97 => {
+                        // XCHG AX, reg
+                        let idx = inst.opcode as u8 & 0x07;
+                        let a = self.cpu.ax;
+                        let b = self.read_gp16(idx);
+                        self.cpu.ax = b;
+                        self.write_gp16(idx, a);
+                    }
+                    // ── Shift/Rotate (D0-D3) ─────────────────────────────────────
+                    0xD0..=0xD3 => {
+                        let modrm = inst.modrm;
+                        let rm_idx = modrm & 0x07;
+                        let reg_op = (modrm >> 3) & 0x07; // 0=ROL,1=ROR,2=RCL,3=RCR,4=SHL,5=SHR,7=SAR
+                        let count: u16 = match inst.opcode as u8 {
+                            0xD0 | 0xD1 => 1,
+                            0xD2 | 0xD3 => (self.cpu.cx & 0x1F) as u16,
+                            _ => 1,
+                        };
+                        let val = self.read_gp16(rm_idx);
+                        if count == 0 {
+                            return !self.bios.dos_break;
+                        }
+                        let mut result = val;
+                        let cf_out: bool;
+                        match reg_op {
+                            0 => {
+                                // ROL
+                                cf_out = (val >> (16 - count)) & 1 != 0;
+                                result = val.rotate_left(count as u32);
+                            }
+                            1 => {
+                                // ROR
+                                cf_out = (val >> (count - 1)) & 1 != 0;
+                                result = val.rotate_right(count as u32);
+                            }
+                            2 => {
+                                // RCL — rotate left through carry
+                                let ext = ((val as u32) << 1) | (if self.cpu.cf() { 1 } else { 0 });
+                                let c = count as u32 % 17;
+                                let rotated = (ext << c) | (ext >> (17 - c));
+                                result = (rotated & 0xFFFF) as u16;
+                                cf_out = (rotated >> 16) & 1 != 0;
+                            }
+                            3 => {
+                                // RCR — rotate right through carry
+                                let ext = ((val as u32) << 1) | (if self.cpu.cf() { 1 } else { 0 });
+                                let c = count as u32 % 17;
+                                let rotated = (ext >> c) | (ext << (17 - c));
+                                result = (rotated >> 1) as u16;
+                                cf_out = (rotated & 0x1) != 0;
+                            }
+                            4 | 6 => {
+                                // SHL/SAL
+                                cf_out = if count > 0 && count <= 16 {
+                                    (val >> (16 - count)) & 1 != 0
+                                } else { false };
+                                result = val.wrapping_shl(count as u32);
+                            }
+                            5 => {
+                                // SHR
+                                cf_out = if count > 0 {
+                                    (val >> (count - 1)) & 1 != 0
+                                } else { false };
+                                result = val.wrapping_shr(count as u32);
+                            }
+                            7 => {
+                                // SAR
+                                cf_out = if count > 0 {
+                                    (val >> (count - 1)) & 1 != 0
+                                } else { false };
+                                let shift = count.min(15);
+                                result = ((val as i16) >> shift) as u16;
+                            }
+                            _ => {
+                                cf_out = false;
+                            }
+                        }
+                        self.write_gp16(rm_idx, result);
+                        self.cpu.update_flags_shift(result, cf_out, count == 1, val);
+                    }
+                    // ── Group 1 (0x80-0x83): ADD/OR/ADC/SBB/AND/SUB/XOR/CMP imm ──
+                    0x80..=0x83 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg_op = (modrm >> 3) & 0x07;
+                        let imm = inst.immediate;
+                        let a = self.read_gp16(rm);
+                        match reg_op {
+                            0 => {
+                                // ADD
+                                let result = a.wrapping_add(imm);
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_add(result, a, imm, true);
+                            }
+                            1 => {
+                                // OR
+                                let result = a | imm;
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_logic(result);
+                            }
+                            2 => {
+                                // ADC
+                                let cf = if self.cpu.cf() { 1 } else { 0 };
+                                let result = a.wrapping_add(imm).wrapping_add(cf);
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_add(result, a, imm.wrapping_add(cf), true);
+                            }
+                            3 => {
+                                // SBB
+                                let cf = if self.cpu.cf() { 1 } else { 0 };
+                                let result = a.wrapping_sub(imm).wrapping_sub(cf);
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_sub(result, a, imm.wrapping_add(cf), true);
+                            }
+                            4 => {
+                                // AND
+                                let result = a & imm;
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_logic(result);
+                            }
+                            5 => {
+                                // SUB
+                                let result = a.wrapping_sub(imm);
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_sub(result, a, imm, true);
+                            }
+                            6 => {
+                                // XOR
+                                let result = a ^ imm;
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_logic(result);
+                            }
+                            7 => {
+                                // CMP
+                                let result = a.wrapping_sub(imm);
+                                self.cpu.update_flags_sub(result, a, imm, true);
+                            }
+                            _ => {}
+                        }
+                    }
+                    // ── Group 3 (0xF6-0xF7): TEST/NOT/NEG/MUL/IMUL/DIV/IDIV ──────
+                    0xF6 | 0xF7 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg_op = (modrm >> 3) & 0x07;
+                        let val = self.read_gp16(rm);
+                        match reg_op {
+                            0 => {
+                                // TEST r/m, imm (F6/F7 with reg=0 uses immediate)
+                                // For F7 with no immediate, treat as TEST with implicit 0
+                                let imm = inst.immediate; // unused for non-immediate forms
+                                let result = val & imm;
+                                self.cpu.update_flags_logic(result);
+                            }
+                            2 => {
+                                // NOT
+                                let result = !val;
+                                self.write_gp16(rm, result);
+                            }
+                            3 => {
+                                // NEG
+                                let result = (0u16).wrapping_sub(val);
+                                self.write_gp16(rm, result);
+                                self.cpu.update_flags_sub(result, 0, val, true);
+                            }
+                            4 => {
+                                // MUL (unsigned)
+                                let a = self.cpu.ax as u32;
+                                let b = val as u32;
+                                let result = a * b;
+                                self.cpu.ax = result as u16;
+                                self.cpu.dx = (result >> 16) as u16;
+                                let of_cf = (result >> 16) != 0;
+                                self.cpu.set_cf(of_cf);
+                                self.cpu.set_of(of_cf);
+                            }
+                            5 => {
+                                // IMUL (signed)
+                                let a = self.cpu.ax as i16 as i32;
+                                let b = val as i16 as i32;
+                                let result = a * b;
+                                self.cpu.ax = result as u16;
+                                self.cpu.dx = (result >> 16) as u16;
+                                let of_cf = result != (result as i16 as i32);
+                                self.cpu.set_cf(of_cf);
+                                self.cpu.set_of(of_cf);
+                            }
+                            6 => {
+                                // DIV (unsigned)
+                                if val == 0 {
+                                    self.cpu.interrupts_enabled = false;
+                                } else {
+                                    let dividend = ((self.cpu.dx as u32) << 16) | self.cpu.ax as u32;
+                                    let quotient = dividend / val as u32;
+                                    let remainder = dividend % val as u32;
+                                    if quotient > 0xFFFF {
+                                        self.cpu.interrupts_enabled = false;
+                                    } else {
+                                        self.cpu.ax = quotient as u16;
+                                        self.cpu.dx = remainder as u16;
+                                    }
+                                }
+                            }
+                            7 => {
+                                // IDIV (signed)
+                                if val == 0 {
+                                    self.cpu.interrupts_enabled = false;
+                                } else {
+                                    let dividend = ((self.cpu.dx as i32) << 16) | (self.cpu.ax as i32);
+                                    let quotient = dividend / (val as i16 as i32);
+                                    let remainder = dividend % (val as i16 as i32);
+                                    if quotient < i16::MIN as i32 || quotient > i16::MAX as i32 {
+                                        self.cpu.interrupts_enabled = false;
+                                    } else {
+                                        self.cpu.ax = quotient as u16;
+                                        self.cpu.dx = remainder as u16;
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                     _ => {}
                 }
             }
             _ => {
-                // Unknown / unimplemented — continue execution
+                let op = inst.opcode as u8;
+                match op {
+                    0x98 => {
+                        // CBW: sign-extend AL → AX
+                        let al = (self.cpu.ax & 0xFF) as i8 as i16 as u16;
+                        self.cpu.ax = al;
+                    }
+                    0x99 => {
+                        // CWD: sign-extend AX → DX:AX
+                        let ax = self.cpu.ax as i16 as i32 as u32;
+                        self.cpu.dx = (ax >> 16) as u16;
+                    }
+                    0x9E => {
+                        // SAHF: store AH into flags low byte (bits 7,6,4,2,0)
+                        let ah = (self.cpu.ax >> 8) as u8;
+                        let new_low = ((ah & 0xD5) | 0x02) as u16; // bit 1 always 1
+                        self.cpu.flags = (self.cpu.flags & 0xFF00) | new_low;
+                    }
+                    0x9F => {
+                        // LAHF: load flags low byte into AH
+                        let flags_lo = (self.cpu.flags & 0xFF) as u8;
+                        self.cpu.ax = (self.cpu.ax & 0x00FF) | ((flags_lo as u16) << 8);
+                    }
+                    0x8D => {
+                        // LEA: load effective address (simplified: treat modrm rm as source reg)
+                        let dst_idx = (inst.modrm >> 3) & 0x07;
+                        let src_idx = inst.modrm & 0x07;
+                        self.write_gp16(dst_idx, self.read_gp16(src_idx));
+                    }
+                    0xD7 => {
+                        // XLAT: AL = [BX + AL]
+                        let addr = self.cpu.linear(self.cpu.ds, self.cpu.bx + (self.cpu.ax & 0xFF) as u16);
+                        let byte = self.mem.read8(addr);
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | byte as u16;
+                    }
+                    0x27 => {
+                        // DAA: decimal adjust AL after addition
+                        let mut al = (self.cpu.ax & 0xFF) as u8;
+                        let orig_al = al;
+                        if (al & 0x0F) > 9 || self.cpu.af() {
+                            al = al.wrapping_add(6);
+                            self.cpu.set_af(true);
+                        } else {
+                            self.cpu.set_af(false);
+                        }
+                        if orig_al > 0x99 || self.cpu.cf() {
+                            al = al.wrapping_add(0x60);
+                            self.cpu.set_cf(true);
+                        } else {
+                            self.cpu.set_cf(false);
+                        }
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | al as u16;
+                        self.cpu.set_pf(Cpu8088::parity(al));
+                        self.cpu.set_zf(al == 0);
+                        self.cpu.set_sf((al as i8) < 0);
+                    }
+                    0x2F => {
+                        // DAS: decimal adjust AL after subtraction
+                        let mut al = (self.cpu.ax & 0xFF) as u8;
+                        let orig_al = al;
+                        let old_cf = self.cpu.cf();
+                        if (al & 0x0F) > 9 || self.cpu.af() {
+                            al = al.wrapping_sub(6);
+                            self.cpu.set_af(true);
+                        } else {
+                            self.cpu.set_af(false);
+                        }
+                        if orig_al > 0x99 || old_cf {
+                            al = al.wrapping_sub(0x60);
+                            self.cpu.set_cf(true);
+                        }
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | al as u16;
+                        self.cpu.set_pf(Cpu8088::parity(al));
+                        self.cpu.set_zf(al == 0);
+                        self.cpu.set_sf((al as i8) < 0);
+                    }
+                    0x37 => {
+                        // AAA: ASCII adjust AL after addition
+                        let al = (self.cpu.ax & 0xFF) as u8;
+                        if (al & 0x0F) > 9 || self.cpu.af() {
+                            self.cpu.ax = self.cpu.ax.wrapping_add(0x0106);
+                            self.cpu.set_af(true);
+                            self.cpu.set_cf(true);
+                        } else {
+                            self.cpu.ax &= 0xFF0F;
+                            self.cpu.set_af(false);
+                            self.cpu.set_cf(false);
+                        }
+                    }
+                    0x3F => {
+                        // AAS: ASCII adjust AL after subtraction
+                        let al = (self.cpu.ax & 0xFF) as u8;
+                        if (al & 0x0F) > 9 || self.cpu.af() {
+                            self.cpu.ax = self.cpu.ax.wrapping_sub(0x0006);
+                            self.cpu.ax &= 0xFF0F;
+                            self.cpu.ax = self.cpu.ax.wrapping_sub(0x0100);
+                            self.cpu.set_af(true);
+                            self.cpu.set_cf(true);
+                        } else {
+                            self.cpu.set_af(false);
+                            self.cpu.set_cf(false);
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
 
