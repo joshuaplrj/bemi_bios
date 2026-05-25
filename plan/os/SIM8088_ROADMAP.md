@@ -103,12 +103,46 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 | INT 21h AH=30h | Get DOS version | done |
 | INT 21h AH=4Ch | Exit with return code | done |
 
-## Phase 5 – DBT Pipeline (Future)
+## Phase 5 – Prefixes, I/O, String Ops, ModRM Fixes (COMPLETE)
+
+### Prefix / Segment Override Support
+| Opcode | Prefix | Status |
+|---|---|---|
+| 0x26 | ES override | done |
+| 0x2E | CS override | done |
+| 0x36 | SS override | done |
+| 0x3E | DS override | done |
+| 0xF0 | LOCK (ignored) | done |
+| 0xF2/0xF3 | REPNE/REP (ignored) | done |
+
+### IN/OUT
+| Opcode | Operation | Status |
+|---|---|---|
+| 0xE4-0xE5 | IN AL/AX, imm8 | done |
+| 0xE6-0xE7 | OUT imm8, AL/AX | done |
+| 0xEC-0xED | IN AL/AX, DX | done (COM1 ports handled) |
+| 0xEE-0xEF | OUT DX, AL/AX | done (COM1 output) |
+
+### String Operations
+| Opcode | Operation | Status |
+|---|---|---|
+| 0xA4-0xA5 | MOVSB/MOVSW | done |
+| 0xA6-0xA7 | CMPSB/CMPSW | done |
+| 0xAA-0xAB | STOSB/STOSW | done |
+| 0xAC-0xAD | LODSB/LODSW | done |
+| 0xAE-0xAF | SCASB/SCASW | done |
+
+### ModRM Fixes
+- `modrm_inst_len()` computes correct total instruction length including memory displacement bytes
+- `prefix_count` tracked and added to IP advancement
+- `ip_after()` accounts for prefix bytes
+
+## Phase 6 – DBT Pipeline (Future)
 
 | # | Task | Detail |
 |---|---|---|
-| 5.1 | Assess DBT integration | Translator targets x86_64; needs 16-bit adapter. |
-| 5.2 | New `test` command | Added comprehensive opcode verification covering all categories. |
+| 6.1 | Assess DBT integration | Translator targets x86_64; needs 16-bit mode adapter. |
+| 6.2 | Wire DBT pipeline to `sim8088` | `simdbt` binary or feature flag in `sim8088`. Out of scope. |
 
 ---
 
@@ -180,4 +214,4 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 - All `cargo` commands must include `--features x8088` (the library crate is `no_std` by default).
 - Correct cargo invocation: `cargo run --features x8088 -- help` (not `cargo run -- sim8088`).
 - `sim8088` uses its own interpreter in `x8088.rs`, not the DBT translator/executor pipeline.
-- Remaining unimplemented: 2-byte escape (0x0F), FPU, string ops (MOVS/STOS/LODS/SCAS/CMPS), IN/OUT, segment overrides.
+- Remaining unimplemented: 2-byte escape (0x0F), FPU (0xD8-0xDF), REP prefix for string ops.
