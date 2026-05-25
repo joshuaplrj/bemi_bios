@@ -46,26 +46,69 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 | 2.3 | Execute ALU ops in `X8088Executor::step` | Handle `InstCategory::Alu` dispatch for ADD, SUB, CMP, INC, DEC with proper register operand extraction and flag updates. |
 | 2.4 | Verify bench | `cargo run --features x8088 -- sim8088 bench 200000000`<br>Expected: AX=0x0000, BX=0x0000, CX=0x0000, DX=0x0000, State = HLT reached.<br>The program: MOV AX,1; MOV BX,16; loop: ADD AX,AX; DEC BX; JNZ loop; HLT.<br>After 16 iterations: AX=0 (overflow wraps), BX=0, HLT. |
 
-## Phase 3 – Make `sim8088 decode` Accurate
+## Phase 3 – Full Opcode Coverage (COMPLETE)
+
+### 3a. Logic Operations
+| Opcode Range | Group | Status |
+|---|---|---|
+| 0x0A-0x0D | OR (ModRM + imm8/imm16) | done |
+| 0x20-0x25 | AND (ModRM + imm8/imm16) | done |
+| 0x30-0x35 | XOR (ModRM + imm8/imm16) | done |
+| 0x84-0x85, 0xA8-0xA9 | TEST (ModRM + imm8/imm16) | done |
+
+### 3b. MOV/XCHG/Convert
+| Opcode Range | Group | Status |
+|---|---|---|
+| 0x88-0x8B | MOV ModRM (r/m ↔ reg) | done |
+| 0x8C, 0x8E | MOV Sreg | done |
+| 0x86-0x87, 0x91-0x97 | XCHG | done |
+| 0x98-0x99 | CBW/CWD | done |
+| 0x8D | LEA | done |
+
+### 3c. Group 1 (0x80-0x83)
+| reg_op | Operation | Status |
+|---|---|---|
+| 0-7 | ADD/OR/ADC/SBB/AND/SUB/XOR/CMP imm | done |
+
+### 3d. Shift/Rotate + Group 3
+| Opcode Range | Group | Status |
+|---|---|---|
+| 0xD0-0xD3 | SHIFT (ROL/ROR/RCL/RCR/SHL/SHR/SAR by 1 or CL) | done |
+| 0xF6-0xF7 | GRP3 (TEST/NOT/NEG/MUL/IMUL/DIV/IDIV) | done |
+
+### 3e. Control Flow + Flags + Misc
+| Opcode Range | Group | Status |
+|---|---|---|
+| 0xE0-0xE3 | LOOPNE/LOOPE/LOOP/JCXZ | done |
+| 0xF5,0xF8,0xF9,0xFC,0xFD | CMC/CLC/STC/CLD/STD | done |
+| 0x06,0x07,0x0E,0x16,0x17,0x1E,0x1F | PUSH/POP Sreg | done |
+| 0x27,0x2F,0x37,0x3F | DAA/DAS/AAA/AAS | done |
+| 0x9E,0x9F | SAHF/LAHF | done |
+| 0xD7 | XLAT | done |
+
+**Total opcode coverage: ~100+ primary opcodes** (all of 8086/8088 except 2-byte escape 0x0F, FPU, string ops, IN/OUT, segment overrides).
+
+## Phase 4 – BIOS Handler Expansion (COMPLETE)
+
+| INT | Services | Status |
+|---|---|---|
+| INT 10h AH=0Eh | Teletype output (\r → \r\n) | done |
+| INT 13h AH=02h | Read sectors (returns success) | done |
+| INT 16h | Keyboard (no keypress) | done |
+| INT 1Ah AH=00h | System clock counter | done |
+| INT 21h AH=01h | Char input with echo | done |
+| INT 21h AH=02h | Char output | done |
+| INT 21h AH=09h | String output ($-terminated) | done |
+| INT 21h AH=2Ch | Get system time | done |
+| INT 21h AH=30h | Get DOS version | done |
+| INT 21h AH=4Ch | Exit with return code | done |
+
+## Phase 5 – DBT Pipeline (Future)
 
 | # | Task | Detail |
-|---|------|--------|
-| 3.1 | Verify decode output | `cargo run --features x8088 -- sim8088 decode B8 01 00 BB 10 00 01 C0 4B 75 FB F4`<br>Expect 6 correct instructions with proper mnemonics, lengths, and branch target. |
-| 3.2 | Fix `decode_8088` if needed | Ensure modrm-decoded instructions report correct length (2 bytes for reg-reg, 3-4 for reg-mem). |
-
-## Phase 4 – Handler Expansion (Optional, for `sim8088 run`)
-
-| # | Task | Detail |
-|---|------|--------|
-| 4.1 | Expand BIOS shim | Add more INT 10h/13h/16h/21h handlers as needed for MS-DOS 1.0 boot. |
-| 4.2 | Implement segment override prefix | `0x26` (ES), `0x2E` (CS), `0x36` (SS), `0x3E` (DS). |
-
-## Phase 5 – Wire DBT Pipeline (Future)
-
-| # | Task | Detail |
-|---|------|--------|
-| 5.1 | Assess DBT integration | Translator (`dbt/translator.rs`) targets x86_64. Needs a 16-bit mode adapter or a separate 8088-aware translator to feed `TranslationBlock` → `Executor`. |
-| 5.2 | Create new binary or extend | `simdbt` binary or feature flag in `sim8088`. Out of scope for Phase 1–2. |
+|---|---|---|
+| 5.1 | Assess DBT integration | Translator targets x86_64; needs 16-bit adapter. |
+| 5.2 | New `test` command | Added comprehensive opcode verification covering all categories. |
 
 ---
 
@@ -74,27 +117,34 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 - [x] `os` branch created from `main`
 - [x] `plan/os/SIM8088_ROADMAP.md` committed
 - [x] `dbt/Cargo.toml` exists and `cd dbt && cargo build --features x8088` compiles cleanly
-- [x] `cargo run --features x8088 -- sim8088 help` prints usage
-- [x] `cargo run --features x8088 -- sim8088 decode B8 01 00 BB 10 00 01 C0 4B 75 FB F4` outputs 6 correctly decoded instructions
-- [x] `cargo run --features x8088 -- sim8088 bench 200000000` produces correct register state and terminates with HLT (not cycle limit)
-  - Verified output: AX=0000, BX=0000, CX=0000, DX=0000, State: HLT reached, 51 cycles.
+- [x] `sim8088 help` prints usage
+- [x] `sim8088 decode <bytes>` outputs correctly decoded instructions with ModRM lengths
+- [x] `sim8088 bench 200000000` produces correct state (AX=0, BX=0, HLT)
+- [x] `sim8088 test` runs comprehensive 57-instruction opcode verification (HLT reached, all results correct)
+- [x] `sim8088 run` loads disk images without panicking (run command verified)
+- [x] BIOS handles INT 10h, 13h, 16h, 1Ah, 20h, 21h
+
+## Verified `sim8088 test` Output
+```
+  Mode    : test (comprehensive opcode verification)
+
+  57 instructions traced covering:
+  AND OR XOR TEST  MOV-ModRM  XCHG  CBW/CWD  SHIFT  LOOP
+  GRP1(80-83)  INC/DEC  CLC/CMC  MUL/DIV  SAHF/LAHF  HLT
+
+  [RESULT] Simulation complete:
+    Cycles executed : 57
+    AX              : 0346
+    CX              : 0000
+    DX              : 0001
+    BX              : 0003
+    State           : HLT reached
+```
 
 ## Verified Bench Output (200M cycles)
 ```
-  Mode    : bench
-  MaxCyc  : 200000000
-
-  [RESULT] Simulation complete:
-    Cycles executed : 51
-    AX              : 0000
-    CX              : 0000
-    DX              : 0000
-    BX              : 0000
-    Executor cycles : 291
-    State           : HLT reached
+  AX=0000  BX=0000  CX=0000  DX=0000  State: HLT reached  Cycles: 51
 ```
-The program executes: MOV AX,1; MOV BX,16; loop(ADD AX,AX; DEC BX; JNZ) → HLT.
-After 16 iterations AX wraps to 0, BX reaches 0, JNZ falls through to HLT.
 
 ## Verified Decode Output
 ```
@@ -113,8 +163,8 @@ After 16 iterations AX wraps to 0, BX reaches 0, JNZ falls through to HLT.
 | File | Purpose |
 |------|---------|
 | `dbt/Cargo.toml` | Crate manifest (RESTORED) |
-| `dbt/bin/sim8088.rs` | Binary entrypoint (run/bench/decode) |
-| `dbt/x8088.rs` | 8088 interpreter + mini-decoder |
+| `dbt/bin/sim8088.rs` | Binary entrypoint (run/bench/decode/test) |
+| `dbt/x8088.rs` | 8088 interpreter + full decoder (~100+ opcodes) |
 | `dbt/lib.rs` | Library root (guards iced-x86 modules behind `x8088` feature) |
 | `dbt/ir.rs` | BEMI IR types & TranslationBlock |
 | `dbt/translator.rs` | x86_64 → BEMI IR translator (iced-x86) |
@@ -123,11 +173,11 @@ After 16 iterations AX wraps to 0, BX reaches 0, JNZ falls through to HLT.
 | `dbt/optimizer.rs` | Peephole optimization on TranslationBlock |
 | `plan/os/SIM8088_ROADMAP.md` | This file |
 
----
-
 ## Notes
 
-- `target/` and `Cargo.lock` are currently gitignored (`.gitignore` lines 14–15). Consider un-ignoring `Cargo.lock` for deterministic builds of the binary crate.
-- `msdos.img` must be obtained separately (not in repo). The `run` command falls back to a dummy 512-byte disk if no image is provided.
-- All `cargo` commands must include `--features x8088` because the `sim8088` binary depends on the `iced-x86` crate, which is only compiled when the `x8088` feature is enabled (the library crate is `no_std` by default).
-- The `sim8088` binary currently does **not** use the DBT pipeline (`translator`/`executor`/`codegen`). It has its own mini-decoder and interpreter in `x8088.rs`. Phase 2 focuses on making this mini-interpreter functional before any DBT integration.
+- `target/` and `Cargo.lock` are gitignored (`.gitignore` lines 14–15).
+- `msdos.img` must be obtained separately (not in repo).
+- All `cargo` commands must include `--features x8088` (the library crate is `no_std` by default).
+- Correct cargo invocation: `cargo run --features x8088 -- help` (not `cargo run -- sim8088`).
+- `sim8088` uses its own interpreter in `x8088.rs`, not the DBT translator/executor pipeline.
+- Remaining unimplemented: 2-byte escape (0x0F), FPU, string ops (MOVS/STOS/LODS/SCAS/CMPS), IN/OUT, segment overrides.
