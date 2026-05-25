@@ -59,7 +59,7 @@ fn is_setcc(mnemonic: Mnemonic) -> bool {
     matches!(
         mnemonic,
         Mnemonic::Seta | Mnemonic::Setae | Mnemonic::Setb | Mnemonic::Setbe
-        | Mnemonic::Setc | Mnemonic::Setnc | Mnemonic::Sete | Mnemonic::Setne
+        | Mnemonic::Sete | Mnemonic::Setne
         | Mnemonic::Setg | Mnemonic::Setge | Mnemonic::Setl | Mnemonic::Setle
         | Mnemonic::Seto | Mnemonic::Setno | Mnemonic::Sets | Mnemonic::Setns
         | Mnemonic::Setp | Mnemonic::Setnp

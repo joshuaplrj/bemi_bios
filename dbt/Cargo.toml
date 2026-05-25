@@ -1,0 +1,21 @@
+[package]
+name = "bemi-dbt"
+version = "1.3.0"
+edition = "2021"
+description = "BEMI Dynamic Binary Translation Pipeline — no_std x86_64 translator + 8088 simulator"
+
+[lib]
+name = "bemi_dbt"
+path = "lib.rs"
+
+[[bin]]
+name = "sim8088"
+path = "bin/sim8088.rs"
+required-features = ["x8088"]
+
+[features]
+default = []
+x8088 = []
+
+[dependencies]
+iced-x86 = { version = "1.21.0", default-features = false, features = ["decoder", "std"] }
