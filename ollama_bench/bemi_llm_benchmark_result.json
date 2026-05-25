@@ -1,0 +1,36 @@
+{
+  "model": "gemma3:200m",
+  "model_params": 200000000,
+  "tokens_generated": 32,
+  "total_flops_per_token": 264241152,
+  "total_gflops": 8.455716864,
+  "model_size_mb": 381.4697265625,
+  "legacy": {
+    "time_ms": 1113022.3392,
+    "tokens_per_second": 0.028750546033964094,
+    "cycles_per_token": 6956389620.0,
+    "total_cycles": 222604467840,
+    "estimated_ops": 42278584320,
+    "ipc": 0.1899269351160926,
+    "energy_joules": 11130.223392,
+    "tdp_watts": 10.0,
+    "d_cache_hit_rate": 0.0,
+    "effective_memory_bw_gbps": 1.6
+  },
+  "bemi": {
+    "time_ms": 27445.188114036002,
+    "tokens_per_second": 1.1659603084897268,
+    "cycles_per_token": 171532425.712725,
+    "total_cycles": 5489037622,
+    "estimated_ops": 29157644352,
+    "ipc": 0.6639971875681965,
+    "energy_joules": 233.28409896930603,
+    "tdp_watts": 8.5,
+    "d_cache_hit_rate": 0.833,
+    "effective_memory_bw_gbps": 4.800000000000001
+  },
+  "speedup": 40.55437093654967,
+  "energy_savings": 47.7110246312349,
+  "effective_memory_bandwidth_legacy_gbps": 1.6,
+  "effective_memory_bandwidth_bemi_gbps": 4.800000000000001
+}
