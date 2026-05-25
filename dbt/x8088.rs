@@ -42,6 +42,8 @@ pub struct DecodedInst8088 {
     pub displacement: i16,
     /// Whether this is a FAR (inter-segment) control transfer
     pub is_far: bool,
+    /// Raw ModR/M byte (0 when instruction has no ModR/M)
+    pub modrm: u8,
     /// Instruction category for branch analysis
     pub category: InstCategory,
     /// Human-readable mnemonic
@@ -115,6 +117,49 @@ impl Cpu8088 {
     pub fn int_flag(&self) -> bool { self.flags & 0x0200 != 0 }
     /// DF flag
     pub fn df(&self) -> bool { self.flags & 0x0400 != 0 }
+    /// PF flag (parity of low 8 bits)
+    pub fn pf(&self) -> bool { self.flags & 0x0004 != 0 }
+    /// AF flag (auxiliary carry)
+    pub fn af(&self) -> bool { self.flags & 0x0010 != 0 }
+
+    /// Set CF from bool
+    pub fn set_cf(&mut self, v: bool) { if v { self.flags |= 0x0001; } else { self.flags &= !0x0001u16; } }
+    /// Set PF from bool
+    pub fn set_pf(&mut self, v: bool) { if v { self.flags |= 0x0004; } else { self.flags &= !0x0004u16; } }
+    /// Set AF from bool
+    pub fn set_af(&mut self, v: bool) { if v { self.flags |= 0x0010; } else { self.flags &= !0x0010u16; } }
+    /// Set ZF from bool
+    pub fn set_zf(&mut self, v: bool) { if v { self.flags |= 0x0040; } else { self.flags &= !0x0040u16; } }
+    /// Set SF from bool
+    pub fn set_sf(&mut self, v: bool) { if v { self.flags |= 0x0080; } else { self.flags &= !0x0080u16; } }
+    /// Set OF from bool
+    pub fn set_of(&mut self, v: bool) { if v { self.flags |= 0x0800; } else { self.flags &= !0x0800u16; } }
+
+    /// Compute parity of low 8 bits (even parity → PF=1)
+    #[inline(always)]
+    pub fn parity(v: u8) -> bool { v.count_ones() % 2 == 0 }
+
+    /// Update arithmetic flags after a 16-bit add.
+    /// CF unchanged for INC/DEC (pass `update_cf: false`).
+    pub fn update_flags_add(&mut self, result: u16, a: u16, b: u16, update_cf: bool) {
+        if update_cf { self.set_cf(result < a); }
+        self.set_pf(Self::parity(result as u8));
+        self.set_af(((a & 0x0F) + (b & 0x0F)) > 0x0F);
+        self.set_zf(result == 0);
+        self.set_sf((result as i16) < 0);
+        // OF: overflow when (a ^ b) >= 0 but (a ^ result) < 0 (i.e., sign changed wrongly)
+        self.set_of((a ^ b) & 0x8000 == 0 && (a ^ result) & 0x8000 != 0);
+    }
+
+    /// Update arithmetic flags after a 16-bit sub.
+    pub fn update_flags_sub(&mut self, result: u16, a: u16, b: u16, update_cf: bool) {
+        if update_cf { self.set_cf(a < b); }
+        self.set_pf(Self::parity(result as u8));
+        self.set_af(((a & 0x0F).wrapping_sub(b & 0x0F)) > 0x0F);
+        self.set_zf(result == 0);
+        self.set_sf((result as i16) < 0);
+        self.set_of(((a ^ b) & 0x8000) != 0 && ((a ^ result) & 0x8000) != 0);
+    }
 }
 
 // ─── 1 MB memory model ───────────────────────────────────────────────────────
@@ -225,57 +270,57 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
     let b0 = mem.read8(phys);
 
     // We build a minimal decoder for the most common instructions:
-    let (mnemonic, category, length, imm, disp_sz, disp, is_far) = match b0 {
+    let (mnemonic, category, length, imm, disp_sz, disp, is_far, modrm_byte) = match b0 {
         // NOP
-        0x90 => ("NOP", InstCategory::Other, 1, 0u16, 0u8, 0i16, false),
+        0x90 => ("NOP", InstCategory::Other, 1, 0u16, 0u8, 0i16, false, 0u8),
         // HLT
-        0xF4 => ("HLT", InstCategory::System, 1, 0, 0, 0, false),
+        0xF4 => ("HLT", InstCategory::System, 1, 0, 0, 0, false, 0u8),
         // CLI / STI
-        0xFA => ("CLI", InstCategory::System, 1, 0, 0, 0, false),
-        0xFB => ("STI", InstCategory::System, 1, 0, 0, 0, false),
+        0xFA => ("CLI", InstCategory::System, 1, 0, 0, 0, false, 0u8),
+        0xFB => ("STI", InstCategory::System, 1, 0, 0, 0, false, 0u8),
         // Short conditional jumps (Jcc rel8)
         0x70..=0x7F => {
             let rel = mem.read8(phys + 1) as i8 as i16;
-            ("Jcc", InstCategory::Jcc, 2, 0, 1, rel, false)
+            ("Jcc", InstCategory::Jcc, 2, 0, 1, rel, false, 0u8)
         }
         // JMP short
         0xEB => {
             let rel = mem.read8(phys + 1) as i8 as i16;
-            ("JMP", InstCategory::Jmp, 2, 0, 1, rel, false)
+            ("JMP", InstCategory::Jmp, 2, 0, 1, rel, false, 0u8)
         }
         // JMP near
         0xE9 => {
             let rel = mem.read16(phys + 1) as i16;
-            ("JMP", InstCategory::Jmp, 3, 0, 2, rel, false)
+            ("JMP", InstCategory::Jmp, 3, 0, 2, rel, false, 0u8)
         }
         // JMP far
         0xEA => {
             let off = mem.read16(phys + 1);
             let _seg = mem.read16(phys + 3);
-            ("JMP FAR", InstCategory::Jmp, 5, off, 2, 0, true)
+            ("JMP FAR", InstCategory::Jmp, 5, off, 2, 0, true, 0u8)
         }
         // CALL near
         0xE8 => {
             let rel = mem.read16(phys + 1) as i16;
-            ("CALL", InstCategory::Call, 3, 0, 2, rel, false)
+            ("CALL", InstCategory::Call, 3, 0, 2, rel, false, 0u8)
         }
         // RET near
-        0xC3 => ("RET", InstCategory::Ret, 1, 0, 0, 0, false),
+        0xC3 => ("RET", InstCategory::Ret, 1, 0, 0, 0, false, 0u8),
         // RET near with imm16
         0xC2 => {
             let n = mem.read16(phys + 1);
-            ("RET", InstCategory::Ret, 3, n, 2, 0, false)
+            ("RET", InstCategory::Ret, 3, n, 2, 0, false, 0u8)
         }
         // INT imm8
         0xCD => {
             let n = mem.read8(phys + 1);
-            ("INT", InstCategory::System, 2, n as u16, 1, 0, false)
+            ("INT", InstCategory::System, 2, n as u16, 1, 0, false, 0u8)
         }
         // PUSH / POP for common patterns — treat as 1-byte
         0x50..=0x5F => {
             let m = if b0 < 0x58 { "PUSH" } else { "POP" };
             let cat = if b0 < 0x58 { InstCategory::Push } else { InstCategory::Pop };
-            (m, cat, 1u8, 0u16, 0u8, 0i16, false)
+            (m, cat, 1u8, 0u16, 0u8, 0i16, false, 0u8)
         }
         // MOV AL/AX, imm8/imm16
         0xB0..=0xBF => {
@@ -285,10 +330,67 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
             } else {
                 (mem.read8(phys + 1) as u16, 2u8)
             };
-            ("MOV", InstCategory::Mov, len, imm, if wide { 2 } else { 1 }, 0, false)
+            ("MOV", InstCategory::Mov, len, imm, if wide { 2 } else { 1 }, 0, false, 0u8)
+        }
+        // ── ADD ──────────────────────────────────────────────────────────────
+        // ADD r/m8, r8 / ADD r/m16, r16 / ADD r8, r/m8 / ADD r16, r/m16
+        0x00 | 0x01 | 0x02 | 0x03 => {
+            let modrm = mem.read8(phys + 1);
+            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 }; // TODO: memory forms
+            ("ADD", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
+        }
+        // ADD AL, imm8
+        0x04 => {
+            let imm = mem.read8(phys + 1) as u16;
+            ("ADD", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8)
+        }
+        // ADD AX, imm16
+        0x05 => {
+            let imm = mem.read16(phys + 1);
+            ("ADD", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8)
+        }
+        // ── SUB ──────────────────────────────────────────────────────────────
+        0x28 | 0x29 | 0x2A | 0x2B => {
+            let modrm = mem.read8(phys + 1);
+            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 };
+            ("SUB", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
+        }
+        // SUB AL, imm8
+        0x2C => {
+            let imm = mem.read8(phys + 1) as u16;
+            ("SUB", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8)
+        }
+        // SUB AX, imm16
+        0x2D => {
+            let imm = mem.read16(phys + 1);
+            ("SUB", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8)
+        }
+        // ── CMP ──────────────────────────────────────────────────────────────
+        0x38 | 0x39 | 0x3A | 0x3B => {
+            let modrm = mem.read8(phys + 1);
+            let len = if (modrm >> 6) == 3 { 2u8 } else { 2u8 };
+            ("CMP", InstCategory::Alu, len, 0u16, 0u8, 0i16, false, modrm)
+        }
+        // CMP AL, imm8
+        0x3C => {
+            let imm = mem.read8(phys + 1) as u16;
+            ("CMP", InstCategory::Alu, 2, imm, 0, 0i16, false, 0u8)
+        }
+        // CMP AX, imm16
+        0x3D => {
+            let imm = mem.read16(phys + 1);
+            ("CMP", InstCategory::Alu, 3, imm, 0, 0i16, false, 0u8)
+        }
+        // ── INC reg16 (0x40-0x47) ────────────────────────────────────────────
+        0x40..=0x47 => {
+            ("INC", InstCategory::Alu, 1, 0u16, 0, 0i16, false, 0u8)
+        }
+        // ── DEC reg16 (0x48-0x4F) ────────────────────────────────────────────
+        0x48..=0x4F => {
+            ("DEC", InstCategory::Alu, 1, 0u16, 0, 0i16, false, 0u8)
         }
         // Generic: unknown / not decoded — skip 1 byte
-        _ => ("???", InstCategory::Other, 1, 0, 0, 0, false),
+        _ => ("???", InstCategory::Other, 1, 0, 0, 0, false, 0u8),
     };
 
     Some(DecodedInst8088 {
@@ -299,6 +401,7 @@ pub fn decode_8088(mem: &Memory8088, cs: u16, ip: u16) -> Option<DecodedInst8088
         disp_size: disp_sz,
         displacement: disp,
         is_far,
+        modrm: modrm_byte,
         category,
         mnemonic,
     })
@@ -385,10 +488,26 @@ impl X8088Executor {
                 }
             }
             InstCategory::Jcc => {
-                // Simplified: always taken (conservatively advance trace)
-                // A full emulator would check the condition code.
-                // For simulation we just follow the branch.
-                let taken = true; // placeholder; good enough for boot traces
+                let cond = inst.opcode as u8 & 0x0F;
+                let taken = match cond {
+                    0 => self.cpu.of_flag(),
+                    1 => !self.cpu.of_flag(),
+                    2 => self.cpu.cf(),
+                    3 => !self.cpu.cf(),
+                    4 => self.cpu.zf(),
+                    5 => !self.cpu.zf(),
+                    6 => self.cpu.cf() || self.cpu.zf(),
+                    7 => !self.cpu.cf() && !self.cpu.zf(),
+                    8 => self.cpu.sf(),
+                    9 => !self.cpu.sf(),
+                    0xA => self.cpu.pf(),
+                    0xB => !self.cpu.pf(),
+                    0xC => self.cpu.sf() != self.cpu.of_flag(),
+                    0xD => self.cpu.sf() == self.cpu.of_flag(),
+                    0xE => self.cpu.zf() || (self.cpu.sf() != self.cpu.of_flag()),
+                    0xF => !self.cpu.zf() && (self.cpu.sf() == self.cpu.of_flag()),
+                    _ => true,
+                };
                 if taken {
                     self.cpu.ip = inst.branch_target(ip);
                 }
@@ -430,6 +549,111 @@ impl X8088Executor {
                 // MOV reg, imm (B0-BF)
                 let reg_idx = inst.opcode as u8 & 0x07;
                 self.write_gp16(reg_idx, inst.immediate);
+            }
+            InstCategory::Alu => {
+                match inst.opcode as u8 {
+                    // ── ADD ──────────────────────────────────────────────────────
+                    0x00 | 0x01 | 0x02 | 0x03 => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let (dst_idx, src_idx): (u8, u8) = match inst.opcode as u8 {
+                            0x00 | 0x01 => (rm, reg),  // dst=r/m, src=reg
+                            _            => (reg, rm), // dst=reg, src=r/m
+                        };
+                        let a = self.read_gp16(dst_idx);
+                        let b = self.read_gp16(src_idx);
+                        let result = a.wrapping_add(b);
+                        self.write_gp16(dst_idx, result);
+                        self.cpu.update_flags_add(result, a, b, true);
+                    }
+                    0x04 => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = (a.wrapping_add(b)) & 0xFF;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | result;
+                        self.cpu.update_flags_add(result as u16, a, b, true);
+                    }
+                    0x05 => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a.wrapping_add(b);
+                        self.cpu.ax = result;
+                        self.cpu.update_flags_add(result, a, b, true);
+                    }
+                    // ── SUB ──────────────────────────────────────────────────────
+                    0x28 | 0x29 | 0x2A | 0x2B => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let (dst_idx, src_idx): (u8, u8) = match inst.opcode as u8 {
+                            0x28 | 0x29 => (rm, reg),
+                            _            => (reg, rm),
+                        };
+                        let a = self.read_gp16(dst_idx);
+                        let b = self.read_gp16(src_idx);
+                        let result = a.wrapping_sub(b);
+                        self.write_gp16(dst_idx, result);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                    }
+                    0x2C => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = (a.wrapping_sub(b)) & 0xFF;
+                        self.cpu.ax = (self.cpu.ax & 0xFF00) | result;
+                        self.cpu.update_flags_sub(result as u16, a, b, true);
+                    }
+                    0x2D => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a.wrapping_sub(b);
+                        self.cpu.ax = result;
+                        self.cpu.update_flags_sub(result, a, b, true);
+                    }
+                    // ── CMP ──────────────────────────────────────────────────────
+                    0x38 | 0x39 | 0x3A | 0x3B => {
+                        let modrm = inst.modrm;
+                        let rm = modrm & 0x07;
+                        let reg = (modrm >> 3) & 0x07;
+                        let (dst_idx, src_idx): (u8, u8) = match inst.opcode as u8 {
+                            0x38 | 0x39 => (rm, reg),
+                            _            => (reg, rm),
+                        };
+                        let a = self.read_gp16(dst_idx);
+                        let b = self.read_gp16(src_idx);
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                    }
+                    0x3C => {
+                        let a = (self.cpu.ax & 0xFF) as u16;
+                        let b = inst.immediate & 0xFF;
+                        let result = (a.wrapping_sub(b)) & 0xFF;
+                        self.cpu.update_flags_sub(result as u16, a, b, true);
+                    }
+                    0x3D => {
+                        let a = self.cpu.ax;
+                        let b = inst.immediate;
+                        let result = a.wrapping_sub(b);
+                        self.cpu.update_flags_sub(result, a, b, true);
+                    }
+                    // ── INC ──────────────────────────────────────────────────────
+                    0x40..=0x47 => {
+                        let idx = inst.opcode as u8 & 0x07;
+                        let a = self.read_gp16(idx);
+                        let result = a.wrapping_add(1);
+                        self.write_gp16(idx, result);
+                        self.cpu.update_flags_add(result, a, 1, false);
+                    }
+                    // ── DEC ──────────────────────────────────────────────────────
+                    0x48..=0x4F => {
+                        let idx = inst.opcode as u8 & 0x07;
+                        let a = self.read_gp16(idx);
+                        let result = a.wrapping_sub(1);
+                        self.write_gp16(idx, result);
+                        self.cpu.update_flags_sub(result, a, 1, false);
+                    }
+                    _ => {}
+                }
             }
             _ => {
                 // Unknown / unimplemented — continue execution
