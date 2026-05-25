@@ -73,10 +73,38 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 
 - [x] `os` branch created from `main`
 - [x] `plan/os/SIM8088_ROADMAP.md` committed
-- [ ] `dbt/Cargo.toml` exists and `cd dbt && cargo build --features x8088` compiles cleanly
-- [ ] `cargo run --features x8088 -- sim8088 help` prints usage
-- [ ] `cargo run --features x8088 -- sim8088 decode B8 01 00 BB 10 00 01 C0 4B 75 FB F4` outputs 6 correctly decoded instructions
-- [ ] `cargo run --features x8088 -- sim8088 bench 200000000` produces correct register state and terminates with HLT (not cycle limit)
+- [x] `dbt/Cargo.toml` exists and `cd dbt && cargo build --features x8088` compiles cleanly
+- [x] `cargo run --features x8088 -- sim8088 help` prints usage
+- [x] `cargo run --features x8088 -- sim8088 decode B8 01 00 BB 10 00 01 C0 4B 75 FB F4` outputs 6 correctly decoded instructions
+- [x] `cargo run --features x8088 -- sim8088 bench 200000000` produces correct register state and terminates with HLT (not cycle limit)
+  - Verified output: AX=0000, BX=0000, CX=0000, DX=0000, State: HLT reached, 51 cycles.
+
+## Verified Bench Output (200M cycles)
+```
+  Mode    : bench
+  MaxCyc  : 200000000
+
+  [RESULT] Simulation complete:
+    Cycles executed : 51
+    AX              : 0000
+    CX              : 0000
+    DX              : 0000
+    BX              : 0000
+    Executor cycles : 291
+    State           : HLT reached
+```
+The program executes: MOV AX,1; MOV BX,16; loop(ADD AX,AX; DEC BX; JNZ) → HLT.
+After 16 iterations AX wraps to 0, BX reaches 0, JNZ falls through to HLT.
+
+## Verified Decode Output
+```
+  [0x0100]       MOV   B8 01 00          Next IP: 0x0103
+  [0x0103]       MOV   BB 10 00          Next IP: 0x0106
+  [0x0106]       ADD   01 C0             Next IP: 0x0108
+  [0x0108]       DEC   4B                Next IP: 0x0109
+  [0x0109]       Jcc   75 FB             Next IP: 0x010b  Branch target: 0x0106
+  [0x010b]       HLT   F4                Next IP: 0x010c
+```
 
 ---
 
@@ -84,7 +112,7 @@ improve the 8088 interpreter so it can execute meaningful 8086/8088 code
 
 | File | Purpose |
 |------|---------|
-| `dbt/Cargo.toml` | Crate manifest (MISSING, to be created) |
+| `dbt/Cargo.toml` | Crate manifest (RESTORED) |
 | `dbt/bin/sim8088.rs` | Binary entrypoint (run/bench/decode) |
 | `dbt/x8088.rs` | 8088 interpreter + mini-decoder |
 | `dbt/lib.rs` | Library root (guards iced-x86 modules behind `x8088` feature) |
